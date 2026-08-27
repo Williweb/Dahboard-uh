@@ -1,0 +1,48 @@
+body{
+    background:#f5f5f5;
+}
+.contenedor-centrado {
+  display: flex;
+  justify-content: left; /* Centra horizontalmente */
+  align-items: center;     /* Centra verticalmente (opcional) */
+  width: 100%;             /* Ocupa todo el ancho disponible */
+  min-height: 50vh;        /* Altura mínima opcional para notar el centrado vertical */
+}
+
+.titulo{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+
+.card-kpi{
+    color:white;
+    text-align:center;
+    border:none;
+}
+
+.card-kpi h3{
+    font-size:35px;
+    font-weight:bold;
+}
+
+.estado-ok{
+    color:#28a745;
+}
+
+.estado-no{
+    color:#dc3545;
+}
+
+.fa-circle-check{
+    color:#28a745;
+}
+
+.fa-circle-xmark{
+    color:#dc3545;
+}
+
+table{
+    font-size:14px;
+}
