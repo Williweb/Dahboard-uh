@@ -912,22 +912,14 @@ function guardarSolicitud(){
 
     // GUARDAR EN GOOGLE SHEETS
 
-    fetch(
-    "https://script.google.com/macros/s/AKfycbyJ9-Xt75kDMTr7fICscXfsZA_SE_wjG057K43KzpOIdj1F10ouoxqg-4QB5zMxLO6N/exec",
-    {
+   fetch(
+"https://script.google.com/macros/s/AKfycbyJ9-Xt75kDMTr7fICscXfsZA_SE_wjG057K43KzpOIdj1F10ouoxqg-4QB5zMxLO6N/exec",
+{
+    method:"POST",
 
-        method:"POST",
+    body:JSON.stringify(solicitud)
 
-        headers:{
-            "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify(
-            solicitud
-        )
-
-    })
-
+})
     .then(response => response.json())
 
     .then(data => {
