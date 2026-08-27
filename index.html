@@ -912,16 +912,36 @@ function guardarSolicitud(){
 
     // GUARDAR EN GOOGLE SHEETS
 
+const formData =
+    new FormData();
+
+for(const key in solicitud){
+
+    formData.append(
+        key,
+        solicitud[key]
+    );
+
+}
+
 fetch(
 "https://script.google.com/macros/s/AKfycbyigAM8-GtuHBS5Dn5RXejga9I8RNxkGqo9DLfmvxlG6NeLozpqBgX8K3pjmUCUHBZ0/exec",
 {
-  method: "POST",
+    method:"POST",
+    body:formData
+})
+.then(() => {
 
-  mode: "no-cors",
-
-  body: JSON.stringify(solicitud)
+    console.log(
+        "Guardado correctamente"
+    );
 
 })
+.catch(error => {
+
+    console.error(error);
+
+});
 .then(() => {
 
   console.log(
