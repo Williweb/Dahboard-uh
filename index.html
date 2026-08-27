@@ -932,31 +932,14 @@ fetch(
 })
 .then(() => {
 
-    console.log(
-        "Guardado correctamente"
-    );
+    console.log("Guardado correctamente");
 
 })
 .catch(error => {
 
-    console.error(error);
+    console.error("Error:", error);
 
 });
-.then(() => {
-
-  console.log(
-    "Solicitud enviada"
-  );
-
-})
-.catch(error => {
-
-  console.error(
-    error
-  );
-
-});
-
 
     // AGREGAR FILA AL DASHBOARD
 
