@@ -135,18 +135,32 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tablaSolicitudes">
-                        <tr>
-                            <td><strong>UHI-1995</strong></td>
-                            <td>LOS TRILLIZOS</td>
-                            <td>ETIQUETA EXPORTACION</td>
-                            <td>26/08/2026</td>
-                            <td>
-                                <i class="fa-solid fa-circle-check icon-ok"></i>
-                            </td>
-                            <td>FRANCISCO PEÑATE</td>
-                            <td>SPS4</td>
-                            <td>
+                   <!-- TABLA -->
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-secondary">
+                <tr>
+                    <th>No.</th>
+                    <th>Cliente</th>
+                    <th>Producto</th>
+                    <th>Fecha</th>
+                    <th>Arte</th>
+                    <th>Solicitado Por</th>
+                    <th>Máquina</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            
+            <!-- DEJAR EL CUERPO VACÍO PARA HACERLO DINÁMICO -->
+            <tbody id="tablaSolicitudes">
+                <!-- Los datos de Google Sheets se cargarán aquí automáticamente mediante JavaScript -->
+            </tbody>
+
+        </table>
+    </div>
+</div>
+
                                 <button class="btn btn-primary btn-sm" onclick='verFormulario("LOS TRILLIZOS", "ETIQUETA EXPORTACION", "FRANCISCO PEÑATE", "SPS4", "26/08/2026")'>
                                     <i class="fa-solid fa-print"></i>
                                 </button>
