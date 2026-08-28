@@ -28,28 +28,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function cargarSolicitudes() {
   mostrarEstadoTabla("Cargando solicitudes...", true);
-  try {
-    const res = await fetch(URL_API_SHEETS + "?t=" + Date.now(), { method: "GET", cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
+   try {
+    // CAMBIO AQUÍ: Enviamos como texto plano con formato JSON para saltar el bloqueo de CORS
+    const response = await fetch(URL_API_SHEETS, {
+      method: "POST",
+      mode: "cors", // Cambiado a "cors" para permitir comunicación limpia
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8" 
+      },
+      body: JSON.stringify(payload) // Convertimos todo tu objeto payload a texto plano
+    });
 
-    // Acepta {data:[...]} o directamente [...]
-    solicitudes = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
-    solicitudes = solicitudes.map(normalizarSolicitud);
+    const data = await response.json();
 
-    actualizarKPI(solicitudes);
-    poblarFiltroMaquinas(solicitudes);
-    aplicarFiltros();
-    mostrarAlerta("Conectado a Google Sheets. " + solicitudes.length + " solicitudes cargadas.", "success");
-  } catch (error) {
-    console.error(error);
-    solicitudes = [];
-    actualizarKPI([]);
-    renderTabla([]);
-    mostrarEstadoTabla("No se pudieron cargar las solicitudes.", false, "Verifica que tu Web App de Google Apps Script tenga una función doGet() y esté desplegada con acceso para quien tenga el enlace.");
-    mostrarAlerta("No fue posible leer Google Sheets. El formulario puede seguir enviando datos si el POST de tu Apps Script está funcionando.", "warning");
+    if (data.status === "success") {
+      // Cerrar modal
+      bootstrap.Modal.getOrCreateInstance(document.getElementById("modalSolicitud")).hide();
+      
+      // Resetear formulario
+      document.getElementById("formSolicitud").reset();
+      
+      alert("🎉 Solicitud enviada correctamente");
+      
+      // Opcional: Recargar los datos de la tabla para ver la nueva fila
+      if (typeof cargarSolicitudes === "function") {
+         cargarSolicitudes();
+      }
+    } else {
+      alert("❌ Error en el servidor de Google: " + data.message);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Error al enviar solicitud de red. Revisa la consola.");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
   }
-}
+
 
 function normalizarSolicitud(raw) {
   const s = raw || {};
