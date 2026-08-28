@@ -55,11 +55,17 @@ async function cargarSolicitudes() {
     } else {
       mostrarEstadoTabla("No se encontraron registros o formato inválido.", false);
     }
-  } catch (err) {
-    console.error("Error al cargar datos:", err);
-    mostrarEstadoTabla("❌ Error al conectar con Google Sheets.", false);
-  }
+} catch (err) {
+
+    console.error("ERROR COMPLETO:", err);
+
+    alert(
+      "Error:\n" +
+      err.message
+    );
+
 }
+
 
 // --- FUNCIÓN 2: GUARDAR DATOS EN GOOGLE SHEETS (PETICIÓN POST) ---
 async function guardarEnGoogleSheets(e) {
