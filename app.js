@@ -7,7 +7,7 @@
  * El GET debe devolver JSON con una matriz de solicitudes.
  * El POST debe aceptar JSON y guardar la solicitud.
  */
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyhsy7v9JxzhA6bZtPaNc-iYjIb6pBC0Ex4GxAT_KSTscf8ayJ8wfABFx3qiw-LppfL/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyReGfojukBF1uOAlnejBFIF7rYb2yIJXUxdg5yyGklxEIcqh4RugTRCacq93Oq80VL/exec";
 
 let solicitudes = [];
 let solicitudesFiltradas = [];
