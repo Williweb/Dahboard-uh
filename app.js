@@ -279,3 +279,4 @@ function renderTabla(data) {
   if (!data.length) {
     mostrarEstadoTabla("No hay solicitudes que coincidan con los filtros.", false);
   } else {
+    }
