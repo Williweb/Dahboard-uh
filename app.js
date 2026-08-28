@@ -113,16 +113,18 @@ async function guardarEnGoogleSheets(e) {
   }
 
   try {
-    const response = await fetch(URL_API_SHEETS, {
-      method: "POST",
-      mode: "cors",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(payload)
-    });
+   const formData = new FormData();
 
-    const data = await response.json();
+Object.keys(payload).forEach(key => {
+    formData.append(key, payload[key]);
+});
+
+await fetch(URL_API_SHEETS, {
+    method: "POST",
+    mode: "no-cors",
+    body: formData
+});
+
 
     if (data.status === "success") {
       const modalEl = document.getElementById("modalSolicitud");
