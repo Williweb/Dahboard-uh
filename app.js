@@ -272,11 +272,36 @@ function actualizarColores(){
 
 function renderTabla(data) {
   const tbody = document.getElementById("tablaSolicitudes");
-  if(!tbody) return;
+  if (!tbody) return;
   tbody.innerHTML = "";
 
   const estTab = document.getElementById("estadoTabla");
+  
   if (!data.length) {
     mostrarEstadoTabla("No hay solicitudes que coincidan con los filtros.", false);
   } else {
-    }
+    if (estTab) estTab.classList.add("d-none");
+  }
+
+  // Generar las filas de forma dinámica
+  data.forEach((s, index) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(s.id || ("#" + (index + 1)))}</strong></td>
+      <td>${escapeHtml(s.cliente)}</td>
+      <td>${escapeHtml(s.producto)}</td>
+      <td>${escapeHtml(formatearFecha(s.fecha))}</td>
+      <td>
+        ${s.arte ? '<i class="fa-solid fa-circle-check icon-ok" title="Referencia disponible"></i>' : '<i class="fa-solid fa-circle-xmark icon-no" title="Sin referencia"></i>'}
+      </td>
+      <td>${escapeHtml(s.solicitadoPor)}</td>
+      <td>${escapeHtml(s.maquina)}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="verFormulario('${escapeHtml(s.cliente)}', '${escapeHtml(s.producto)}')">
+          <i class="fa-solid fa-print"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
