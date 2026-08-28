@@ -40,7 +40,7 @@ async function cargarSolicitudes() {
   try {
     const response = await fetch(URL_API_SHEETS, {
       method: "GET",
-      mode: "cors"
+     mode: "no-cors"
     });
     
     const data = await response.json();
