@@ -2,7 +2,7 @@
  * RUA - Solicitudes de Arte V2
  * Backend esperado: Google Apps Script Web App.
  */
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyReGfojukBF1uOAlnejBFIF7rYb2yIJXUxdg5yyGklxEIcqh4RugTRCacq93Oq80VL/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbwDghAq9aPcE-LxyEeZcf9dC9hxiptvWBiqvIqtUg-FfPa6UnKVroeL7bIlGdgbThgC/exec";
 
 let solicitudes = [];
 let solicitudesFiltradas = [];
