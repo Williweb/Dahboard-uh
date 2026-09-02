@@ -1,456 +1,124 @@
-/*
- * RUA - Solicitudes de Arte V2
- * Frontend conectado a Google Apps Script + Google Sheets
- */
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbxyhPusfHe_DZArGoV3-oaqquD6so2EzZ0FxJ78z3aITr7pAcZvlXy7-u7S9JbjKGtC/exec";
-
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbzpr0VjfX32CLya2NmT9I3psJu2d9RzB__wIJ910PEiGdZpOiDF_AK5J1Eq0afs_qhe/exec";
 let solicitudes = [];
 let solicitudesFiltradas = [];
+let solicitudDetalleActual = null;
 
-const $ = id => document.getElementById(id);
-
-// =========================================================
-// INICIO
-// =========================================================
-document.addEventListener("DOMContentLoaded", () => {
-  const form = $("formSolicitud");
-  if (form) form.addEventListener("submit", guardarEnGoogleSheets);
-
-  const btnAct = $("btnActualizar");
-  if (btnAct) btnAct.addEventListener("click", cargarSolicitudes);
-
-  const btnExp = $("btnExportar");
-  if (btnExp) btnExp.addEventListener("click", exportarExcel);
-
-  const btnLimp = $("btnLimpiarFiltros");
-  if (btnLimp) btnLimp.addEventListener("click", limpiarFiltros);
-
-  ["filtroTexto", "filtroEstado", "filtroMaquina", "filtroPresentacion"].forEach(id => {
-    const el = $(id);
-    if (el) {
-      el.addEventListener("input", aplicarFiltros);
-      el.addEventListener("change", aplicarFiltros);
-    }
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('formSolicitud')?.addEventListener('submit', guardarEnGoogleSheets);
+  document.getElementById('btnActualizar')?.addEventListener('click', cargarSolicitudes);
+  document.getElementById('btnExportar')?.addEventListener('click', exportarExcel);
+  document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
+  ['filtroTexto','filtroEstado','filtroMaquina'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', aplicarFiltros);
+    document.getElementById(id)?.addEventListener('change', aplicarFiltros);
   });
-
   actualizarColores();
   cargarSolicitudes();
 });
 
-// =========================================================
-// GET - CARGAR SOLICITUDES
-// =========================================================
 async function cargarSolicitudes() {
-  mostrarEstadoTabla("Cargando solicitudes...", true);
-
+  mostrarEstadoTabla('Cargando solicitudes...', true);
   try {
-    // IMPORTANTE: NO usar mode: "no-cors" aquí porque necesitamos leer JSON.
-    const response = await fetch(URL_API_SHEETS + "?t=" + Date.now(), {
-      method: "GET",
-      cache: "no-store",
-      redirect: "follow"
-    });
-
-    if (!response.ok) {
-      throw new Error("Google Apps Script respondió HTTP " + response.status);
-    }
-
+    const response = await fetch(URL_API_SHEETS + '?t=' + Date.now());
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-
-    if (!Array.isArray(data)) {
-      throw new Error(data?.message || "La respuesta no tiene formato de lista.");
-    }
-
+    if (!Array.isArray(data)) throw new Error(data.message || 'Formato de respuesta inválido');
     solicitudes = data.map(normalizarSolicitud);
     solicitudesFiltradas = [...solicitudes];
-
-    actualizarKPI(solicitudes);
+    actualizarKPI(solicitudesFiltradas);
     poblarFiltroMaquinas(solicitudes);
     renderTabla(solicitudesFiltradas);
-
-    const alerta = $("alertaConexion");
-    if (alerta) {
-      alerta.className = "alert alert-success py-2";
-      alerta.textContent = "✓ Conectado a Google Sheets · " + solicitudes.length + " solicitudes";
-    }
   } catch (err) {
-    console.error("Error cargando Google Sheets:", err);
-    solicitudes = [];
-    solicitudesFiltradas = [];
-    actualizarKPI([]);
-    renderTabla([]);
-
-    const alerta = $("alertaConexion");
-    if (alerta) {
-      alerta.className = "alert alert-danger py-2";
-      alerta.textContent = "✕ No se pudo conectar con Google Sheets: " + err.message;
-    }
+    console.error(err);
+    mostrarEstadoTabla('No se pudieron cargar las solicitudes: ' + err.message, true);
   }
 }
 
-// =========================================================
-// POST - GUARDAR SOLICITUD
-// =========================================================
 async function guardarEnGoogleSheets(e) {
   e.preventDefault();
-
-  const btn = $("btnGuardar");
-  const original = btn ? btn.innerHTML : "Guardar Solicitud";
-
-  const val = id => $(id)?.value?.trim() || "";
-
+  const btn = document.getElementById('btnGuardar');
+  const original = btn?.innerHTML || 'Guardar';
+  const val = id => document.getElementById(id)?.value || '';
   const payload = {
-    cliente: val("cliente"),
-    producto: val("producto"),
-    solicitadoPor: val("solicitadoPor"),
-    prioridad: val("prioridad"),
-    fechaRequerida: val("fechaRequerida"),
-    maquina: val("maquina"),
-    material: val("material"),
-    acabado: val("acabado"),
-    ancho: val("ancho"),
-    largo: val("largo"),
-    presentacion: val("presentacion"),
-    salidaRollo: val("salidaRollo"),
-    cornerRadio: val("cornerRadio"),
-    troquel: val("troquel"),
-    color1: val("color1"),
-    color2: val("color2"),
-    color3: val("color3"),
-    color4: val("color4"),
-    color5: val("color5"),
-    color6: val("color6"),
-    color7: val("color7"),
-    color8: val("color8"),
-    observaciones: val("observaciones"),
-    archivoNombre: $("adjunto")?.files?.[0]?.name || ""
+    cliente:val('cliente'), producto:val('producto'), solicitadoPor:val('solicitadoPor'), prioridad:val('prioridad'),
+    fechaRequerida:val('fechaRequerida'), maquina:val('maquina'), material:val('material'), acabado:val('acabado'),
+    ancho:val('ancho'), largo:val('largo'), presentacion:val('presentacion'), salidaRollo:val('salidaRollo'),
+    cornerRadio:val('cornerRadio'), troquel:val('troquel'), color1:val('color1'), color2:val('color2'), color3:val('color3'),
+    color4:val('color4'), color5:val('color5'), color6:val('color6'), color7:val('color7'), color8:val('color8'),
+    observaciones:val('observaciones')
   };
-
-  if (!payload.cliente || !payload.producto) {
-    alert("⚠️ Debe completar obligatoriamente Cliente y Producto.");
-    return;
-  }
-
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-  }
-
+  if (!payload.cliente || !payload.producto) { alert('⚠️ Debe completar Cliente y Producto.'); return; }
+  if (btn) { btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando...'; }
   try {
-    // FormData evita el preflight CORS que suele provocar problemas con
-    // application/json en Google Apps Script.
-    const formData = new FormData();
-    Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
-
-    const response = await fetch(URL_API_SHEETS, {
-      method: "POST",
-      body: formData,
-      redirect: "follow"
-    });
-
-    // Si el servidor permite leer la respuesta, validamos el JSON.
-    // Si el navegador bloquea la lectura por CORS pero el POST fue enviado,
-    // no se considera automáticamente un error de guardado.
-    let confirmado = false;
-
-    try {
-      if (response.ok) {
-        const texto = await response.text();
-        if (texto) {
-          const data = JSON.parse(texto);
-          confirmado = data.status === "success";
-          if (!confirmado && data.message) throw new Error(data.message);
-        } else {
-          confirmado = true;
-        }
-      }
-    } catch (lecturaError) {
-      console.warn("Respuesta de Apps Script no pudo leerse por CORS:", lecturaError);
-      confirmado = true;
-    }
-
-    if (!response.ok) {
-      throw new Error("Google Apps Script respondió HTTP " + response.status);
-    }
-
-    const modalEl = $("modalSolicitud");
-    if (modalEl && window.bootstrap) {
-      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-    }
-
-    const form = $("formSolicitud");
-    if (form) form.reset();
+    const response = await fetch(URL_API_SHEETS, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)});
+    const data = await response.json();
+    if (data.status !== 'success') throw new Error(data.message || 'Google Sheets rechazó la solicitud');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalSolicitud')).hide();
+    document.getElementById('formSolicitud')?.reset();
     actualizarColores();
-
-    alert(confirmado
-      ? "🎉 ¡Solicitud enviada correctamente a Google Sheets!"
-      : "🎉 Solicitud enviada. Actualizando el dashboard...");
-
-    // Dar tiempo al Apps Script para terminar appendRow.
-    setTimeout(cargarSolicitudes, 800);
-
-  } catch (err) {
-    console.error("Error en el envío:", err);
-    alert("❌ No se pudo enviar la solicitud.\n\n" + err.message);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = original;
-    }
-  }
+    alert('🎉 ¡Solicitud enviada correctamente! Estado: PENDIENTE');
+    await cargarSolicitudes();
+  } catch(err) {
+    console.error(err);
+    alert('❌ No se pudo guardar la solicitud: ' + err.message);
+  } finally { if(btn){btn.disabled=false;btn.innerHTML=original;} }
 }
 
-// =========================================================
-// NORMALIZACIÓN
-// =========================================================
 function normalizarSolicitud(raw) {
-  const s = raw || {};
+  const s=raw||{};
   return {
-    id: valor(s, ["id", "ID", "no", "No.", "numero", "Número", "numeroSolicitud"]),
-    cliente: valor(s, ["cliente", "Cliente"]),
-    producto: valor(s, ["producto", "Producto"]),
-    fecha: valor(s, ["fecha", "Fecha", "timestamp", "Timestamp", "fechaHora"]),
-    arte: valor(s, ["arte", "Arte", "archivo", "Archivo", "referencia", "Referencia", "archivoNombre"]),
-    solicitadoPor: valor(s, ["solicitadoPor", "Solicitado Por", "solicitante", "Solicitante"]),
-    estado: (valor(s, ["estado", "Estado", "status", "Status"]) || "PENDIENTE").toString().toUpperCase(),
-    prioridad: (valor(s, ["prioridad", "Prioridad"]) || "NORMAL").toString().toUpperCase(),
-    maquina: valor(s, ["maquina", "Máquina", "Maquina"]),
-    material: valor(s, ["material", "Material"]),
-    acabado: valor(s, ["acabado", "Acabado"]),
-    ancho: valor(s, ["ancho", "Ancho"]),
-    largo: valor(s, ["largo", "Largo"]),
-    presentacion: valor(s, ["presentacion", "Presentacion", "Rollos / Hojas"]),
-    salidaRollo: valor(s, ["salidaRollo", "Salida de Rollo"]),
-    cornerRadio: valor(s, ["cornerRadio", "Corner Radio"]),
-    troquel: valor(s, ["troquel", "Troquel"]),
-    fechaRequerida: valor(s, ["fechaRequerida", "Fecha requerida", "Fecha Requerida"]),
-    observaciones: valor(s, ["observaciones", "Observaciones"]),
-    color1: valor(s, ["color1", "Color 1"]),
-    color2: valor(s, ["color2", "Color 2"]),
-    color3: valor(s, ["color3", "Color 3"]),
-    color4: valor(s, ["color4", "Color 4"]),
-    color5: valor(s, ["color5", "Color 5"]),
-    color6: valor(s, ["color6", "Color 6"]),
-    color7: valor(s, ["color7", "Color 7"]),
-    color8: valor(s, ["color8", "Color 8"]),
-    raw: s
+    id:valor(s,['id','ID','no','No.']), cliente:valor(s,['cliente','Cliente']), producto:valor(s,['producto','Producto']),
+    fecha:valor(s,['fecha','Fecha']), arte:valor(s,['arte','Arte','archivo','Archivo','referencia','Referencia','archivoNombre','Archivo Nombre']),
+    archivoNombre:valor(s,['archivoNombre','Archivo Nombre']), solicitadoPor:valor(s,['solicitadoPor','Solicitado Por']), maquina:valor(s,['maquina','Máquina','Maquina']),
+    estado:(valor(s,['estado','Estado','status','Status'])||'PENDIENTE').toString().toUpperCase(), prioridad:(valor(s,['prioridad','Prioridad'])||'NORMAL').toString().toUpperCase(),
+    material:valor(s,['material','Material']), acabado:valor(s,['acabado','Acabado']), ancho:valor(s,['ancho','Ancho']), largo:valor(s,['largo','Largo']),
+    presentacion:valor(s,['presentacion','Presentación']), salidaRollo:valor(s,['salidaRollo','Salida de Rollo']), cornerRadio:valor(s,['cornerRadio','Corner Radio']),
+    troquel:valor(s,['troquel','Troquel']), fechaRequerida:valor(s,['fechaRequerida','Fecha Requerida']), observaciones:valor(s,['observaciones','Observaciones']),
+    comentarioArte:valor(s,['comentarioArte','Comentario Arte']), color1:valor(s,['color1','Color 1']), color2:valor(s,['color2','Color 2']), color3:valor(s,['color3','Color 3']),
+    color4:valor(s,['color4','Color 4']), color5:valor(s,['color5','Color 5']), color6:valor(s,['color6','Color 6']), color7:valor(s,['color7','Color 7']), color8:valor(s,['color8','Color 8']), raw:s
   };
 }
+function valor(obj,keys){for(const k of keys) if(obj[k]!==undefined&&obj[k]!==null&&String(obj[k]).trim()!=='') return obj[k];return '';}
+function actualizarKPI(data){const estados=data.map(s=>s.estado); document.getElementById('kpiPendientes').textContent=estados.filter(x=>x==='PENDIENTE'||x==='PENDIENTES').length; document.getElementById('kpiProceso').textContent=estados.filter(x=>x.includes('PROCESO')||x==='EN DISEÑO'||x==='ASIGNADA').length; document.getElementById('kpiFinalizados').textContent=estados.filter(x=>x.includes('FINAL')).length; document.getElementById('kpiUrgentes').textContent=data.filter(s=>s.prioridad==='URGENTE').length;}
+function poblarFiltroMaquinas(data){const el=document.getElementById('filtroMaquina');if(!el)return;const actual=el.value;const ms=[...new Set(data.map(s=>s.maquina).filter(Boolean))].sort();el.innerHTML='<option value="">Todas las máquinas</option>'+ms.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');if(ms.includes(actual))el.value=actual;}
+function aplicarFiltros(){const t=document.getElementById('filtroTexto')?.value.trim().toLowerCase()||'',e=document.getElementById('filtroEstado')?.value||'',m=document.getElementById('filtroMaquina')?.value||'';solicitudesFiltradas=solicitudes.filter(s=>{const estado=(s.estado||'').toUpperCase();if(estado.includes('FINAL'))return false;const b=[s.id,s.cliente,s.producto,s.solicitadoPor,s.maquina,s.material,s.estado,s.prioridad].join(' ').toLowerCase();return(!t||b.includes(t))&&(!e||estadoCoincide(estado,e))&&(!m||s.maquina===m)});renderTabla(solicitudesFiltradas);}
+function estadoCoincide(a,f){a=(a||'').toUpperCase();if(f==='PENDIENTE')return a==='PENDIENTE'||a==='PENDIENTES';if(f==='EN PROCESO')return a.includes('PROCESO')||a==='EN DISEÑO'||a==='ASIGNADA';if(f==='FINALIZADO')return a.includes('FINAL');return a===f;}
+function actualizarColores(){const el=document.getElementById('maquina');if(!el)return;const max={MARKANDY:1,DIGITAL:4,ZTJ330:5,FIT:6,SPS4:8}[el.value]||0;for(let i=1;i<=8;i++){const c=document.getElementById('color'+i);if(c){c.disabled=i>max;if(i>max)c.value='';}}}
+function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes que coincidan con los filtros.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>#${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
+function badgeEstado(e){const cls=e==='PENDIENTE'?'warning':e.includes('FINAL')?'success':e==='URGENTE'?'danger':'info';return `<span class="badge text-bg-${cls}">${escapeHtml(e)}</span>`;}
+function mostrarEstadoTabla(msg,show){const el=document.getElementById('estadoTabla');if(!el)return;el.querySelector('p').textContent=msg;el.classList.toggle('d-none',!show);}
+function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+function formatearFecha(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('es-SV',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 
-function valor(obj, keys) {
-  for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== "") return obj[key];
-  }
-  return "";
+function verSolicitud(index){
+  const s=solicitudesFiltradas[index]; if(!s)return;
+  solicitudDetalleActual=s;
+  document.getElementById('detalleTitulo').textContent=`Solicitud #${s.id}`;
+  document.getElementById('detalleSubtitulo').textContent=`${s.cliente||''} · ${s.producto||''}`;
+  const campos=[['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel]];
+  document.getElementById('detalleContenido').innerHTML=`<div class="row g-3">${campos.map(([l,v])=>`<div class="col-md-4"><div class="border rounded p-3 h-100 bg-light"><div class="small text-muted mb-1">${escapeHtml(l)}</div><div class="fw-semibold">${escapeHtml(v||'—')}</div></div></div>`).join('')}<div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Colores</div><div>${[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).map(v=>`<span class="badge text-bg-secondary me-1 mb-1">${escapeHtml(v)}</span>`).join('')||'—'}</div></div></div><div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Observaciones</div><div style="white-space:pre-wrap">${escapeHtml(s.observaciones||'—')}</div></div></div><div class="col-md-6"><label class="form-label fw-semibold">Estado</label><select id="detalleEstado" class="form-select"><option>PENDIENTE</option><option>EN PROCESO</option><option>FINALIZADO</option><option>RECHAZADO</option></select></div><div class="col-md-6"><label class="form-label fw-semibold">Comentario de Arte</label><textarea id="detalleComentario" class="form-control" rows="2" placeholder="Comentario o avance del diseñador"></textarea></div><div class="col-12 d-flex gap-2 flex-wrap"><button class="btn btn-primary" onclick="guardarCambiosSolicitud()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios</button><button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button></div></div>`;
+  document.getElementById('detalleEstado').value=['PENDIENTE','EN PROCESO','FINALIZADO','RECHAZADO'].includes(s.estado)?s.estado:'EN PROCESO';
+  document.getElementById('detalleComentario').value=s.comentarioArte||'';
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).show();
 }
 
-// =========================================================
-// KPI / FILTROS
-// =========================================================
-function actualizarKPI(data) {
-  const estados = data.map(s => s.estado.toUpperCase());
-  $("kpiPendientes") && ($("kpiPendientes").textContent = estados.filter(x => x === "PENDIENTE" || x === "PENDIENTES").length);
-  $("kpiProceso") && ($("kpiProceso").textContent = estados.filter(x => x.includes("PROCESO") || x === "EN DISEÑO" || x === "ASIGNADA").length);
-  $("kpiFinalizados") && ($("kpiFinalizados").textContent = estados.filter(x => x.includes("FINAL")).length);
-  $("kpiUrgentes") && ($("kpiUrgentes").textContent = data.filter(s => s.prioridad === "URGENTE" || s.estado === "URGENTE").length);
+async function marcarComoTerminado(){
+  if(!solicitudDetalleActual)return;
+  const select=document.getElementById('detalleEstado');
+  if(select) select.value='FINALIZADO';
+  await guardarCambiosSolicitud();
 }
 
-function poblarFiltroMaquinas(data) {
-  const select = $("filtroMaquina");
-  if (!select) return;
-  const actual = select.value;
-  const maquinas = [...new Set(data.map(s => s.maquina).filter(Boolean))].sort();
-  select.innerHTML = '<option value="">Todas las máquinas</option>' +
-    maquinas.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join("");
-  if (maquinas.includes(actual)) select.value = actual;
+async function guardarCambiosSolicitud(){
+  if(!solicitudDetalleActual)return;
+  const estado=document.getElementById('detalleEstado').value, comentario=document.getElementById('detalleComentario').value;
+  try{
+    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:solicitudDetalleActual.id,estado:estado,comentarioArte:comentario})});
+    const data=await response.json(); if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
+    alert('✅ Estado y comentario actualizados.');
+    await cargarSolicitudes();
+  }catch(err){console.error(err);alert('❌ Error al actualizar: '+err.message);}
 }
-
-function aplicarFiltros() {
-  const texto = $("filtroTexto")?.value.trim().toLowerCase() || "";
-  const estado = $("filtroEstado")?.value || "";
-  const maquina = $("filtroMaquina")?.value || "";
-  const presentacion = $("filtroPresentacion")?.value || "";
-
-  solicitudesFiltradas = solicitudes.filter(s => {
-    const bolsa = [s.id, s.cliente, s.producto, s.solicitadoPor, s.maquina, s.material, s.estado, s.prioridad].join(" ").toLowerCase();
-    return (!texto || bolsa.includes(texto))
-      && (!estado || estadoCoincide(s.estado, estado))
-      && (!maquina || s.maquina === maquina)
-      && (!presentacion || (s.presentacion || "").toUpperCase() === presentacion);
-  });
-
-  renderTabla(solicitudesFiltradas);
-}
-
-function estadoCoincide(actual, filtro) {
-  actual = (actual || "").toUpperCase();
-  if (filtro === "PENDIENTE") return actual === "PENDIENTE" || actual === "PENDIENTES";
-  if (filtro === "EN PROCESO") return actual.includes("PROCESO") || actual === "EN DISEÑO" || actual === "ASIGNADA";
-  if (filtro === "FINALIZADO") return actual.includes("FINAL");
-  return actual === filtro;
-}
-
-function limpiarFiltros() {
-  ["filtroTexto", "filtroEstado", "filtroMaquina", "filtroPresentacion"].forEach(id => {
-    const el = $(id);
-    if (el) el.value = "";
-  });
-  solicitudesFiltradas = [...solicitudes];
-  renderTabla(solicitudesFiltradas);
-}
-
-// =========================================================
-// COLORES SEGÚN MÁQUINA
-// =========================================================
-function actualizarColores() {
-  const maquina = $("maquina")?.value || "";
-  const maximos = { MARKANDY: 1, DIGITAL: 4, ZTJ330: 5, FIT: 6, SPS4: 8 };
-  const max = maximos[maquina] || 0;
-
-  for (let i = 1; i <= 8; i++) {
-    const campo = $("color" + i);
-    if (!campo) continue;
-    campo.disabled = i > max;
-    if (i > max) campo.value = "";
-  }
-}
-
-// =========================================================
-// TABLA
-// =========================================================
-function renderTabla(data) {
-  const tbody = $("tablaSolicitudes");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  const contador = $("contadorSolicitudes");
-  if (contador) contador.textContent = `${data.length} solicitud${data.length === 1 ? "" : "es"}`;
-
-  if (!data.length) {
-    mostrarEstadoTabla("No hay solicitudes que coincidan con los filtros.", false);
-    return;
-  }
-
-  const estTab = $("estadoTabla");
-  if (estTab) estTab.classList.add("d-none");
-
-  data.forEach((s, index) => {
-    const tr = document.createElement("tr");
-    const id = s.id || ("#" + (index + 1));
-
-    tr.innerHTML = `
-      <td><strong>${escapeHtml(id)}</strong></td>
-      <td>${escapeHtml(s.cliente)}</td>
-      <td>${escapeHtml(s.producto)}</td>
-      <td>${escapeHtml(formatearFecha(s.fecha))}</td>
-      <td>${s.arte ? '<i class="fa-solid fa-circle-check icon-ok" title="Referencia disponible"></i>' : '<i class="fa-solid fa-circle-xmark icon-no" title="Sin referencia"></i>'}</td>
-      <td>${escapeHtml(s.solicitadoPor)}</td>
-      <td>${escapeHtml(s.maquina)}</td>
-      <td>
-        <button class="btn btn-primary btn-sm" type="button" title="Ver detalle">
-          <i class="fa-solid fa-eye"></i>
-        </button>
-      </td>`;
-
-    tr.querySelector("button").addEventListener("click", () => verFormulario(s));
-    tbody.appendChild(tr);
-  });
-}
-
-function mostrarEstadoTabla(mensaje, cargando) {
-  const est = $("estadoTabla");
-  if (!est) return;
-  est.classList.remove("d-none");
-  est.innerHTML = cargando
-    ? `<p class="mb-1"><i class="fa-solid fa-spinner fa-spin"></i> ${escapeHtml(mensaje)}</p>`
-    : `<p class="mb-1">${escapeHtml(mensaje)}</p>`;
-}
-
-// =========================================================
-// DETALLE
-// =========================================================
-function verFormulario(solicitud) {
-  const modal = $("modalDetalle");
-  if (!modal) return;
-
-  const titulo = $("detalleTitulo");
-  const subtitulo = $("detalleSubtitulo");
-  const contenido = $("detalleContenido");
-
-  if (titulo) titulo.textContent = `${solicitud.cliente || "Solicitud"} · ${solicitud.producto || ""}`;
-  if (subtitulo) subtitulo.textContent = `Solicitado por: ${solicitud.solicitadoPor || "—"} · ${formatearFecha(solicitud.fecha)}`;
-
-  if (contenido) {
-    const campos = [
-      ["Estado", solicitud.estado], ["Prioridad", solicitud.prioridad], ["Máquina", solicitud.maquina],
-      ["Material", solicitud.material], ["Acabado", solicitud.acabado], ["Ancho", solicitud.ancho],
-      ["Largo", solicitud.largo], ["Presentación", solicitud.presentacion], ["Salida de Rollo", solicitud.salidaRollo],
-      ["Corner Radio", solicitud.cornerRadio], ["Troquel", solicitud.troquel], ["Fecha requerida", solicitud.fechaRequerida],
-      ["Colores", [1,2,3,4,5,6,7,8].map(i => solicitud[`color${i}`]).filter(Boolean).join(", ")],
-      ["Referencia", solicitud.arte || "No adjunta"], ["Observaciones", solicitud.observaciones || "—"]
-    ];
-
-    contenido.innerHTML = `<div class="row g-3">${campos.map(([label, value]) => `
-      <div class="col-md-6"><div class="border rounded p-3 h-100"><div class="small text-muted">${escapeHtml(label)}</div><div class="fw-semibold">${escapeHtml(value)}</div></div></div>
-    `).join("")}</div>`;
-  }
-
-  if (window.bootstrap) bootstrap.Modal.getOrCreateInstance(modal).show();
-}
-
-// Compatibilidad con código antiguo que pudiera llamar verFormulario(cliente, producto)
-window.verFormulario = function(a, b) {
-  if (typeof a === "object") return verFormulario(a);
-  const encontrada = solicitudes.find(s => s.cliente === a && s.producto === b);
-  if (encontrada) verFormulario(encontrada);
-};
-
-// =========================================================
-// EXPORTACIÓN CSV (compatible con Excel)
-// =========================================================
-function exportarExcel() {
-  if (!solicitudesFiltradas.length) {
-    alert("No hay solicitudes para exportar.");
-    return;
-  }
-
-  const columnas = ["id","cliente","producto","fecha","solicitadoPor","estado","prioridad","maquina","material","acabado","ancho","largo","presentacion","salidaRollo","cornerRadio","troquel","color1","color2","color3","color4","color5","color6","color7","color8","fechaRequerida","observaciones","archivoNombre"];
-  const filas = [columnas, ...solicitudesFiltradas.map(s => columnas.map(c => s[c] ?? ""))];
-  const csv = filas.map(f => f.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
-  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "solicitudes_RUA.csv";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-// =========================================================
-// UTILIDADES
-// =========================================================
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function formatearFecha(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("es-SV", {
-    dateStyle: "short",
-    timeStyle: "short"
-  });
-}
-
-window.cargarSolicitudes = cargarSolicitudes;
-window.guardarEnGoogleSheets = guardarEnGoogleSheets;
-window.actualizarColores = actualizarColores;
-window.aplicarFiltros = aplicarFiltros;
+function limpiarFiltros(){['filtroTexto','filtroEstado','filtroMaquina'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});aplicarFiltros();}
+function exportarExcel(){if(!solicitudesFiltradas.length){alert('No hay solicitudes para exportar.');return;}const h=['No.','Cliente','Producto','Fecha','Solicitado Por','Máquina','Estado','Prioridad','Material','Acabado','Ancho','Largo','Presentación','Fecha Requerida','Observaciones','Comentario Arte'];const rows=solicitudesFiltradas.map(s=>[s.id,s.cliente,s.producto,formatearFecha(s.fecha),s.solicitadoPor,s.maquina,s.estado,s.prioridad,s.material,s.acabado,s.ancho,s.largo,s.presentacion,s.fechaRequerida,s.observaciones,s.comentarioArte]);const csv=[h,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));a.download='solicitudes_RUA.csv';a.click();}
