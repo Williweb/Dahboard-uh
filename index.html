@@ -74,13 +74,6 @@
           <option value="">Todas las máquinas</option>
         </select>
       </div>
-      <div class="col-sm-4 col-lg-2">
-        <select id="filtroPresentacion" class="form-select">
-          <option value="">Presentación</option>
-          <option value="ROLLOS">Rollos</option>
-          <option value="HOJAS">Hojas</option>
-        </select>
-      </div>
       <div class="col-lg-2">
         <button class="btn btn-outline-danger w-100" id="btnLimpiarFiltros"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar</button>
       </div>
@@ -91,7 +84,7 @@
         <thead class="table-secondary">
           <tr>
             <th>No.</th><th>Cliente</th><th>Producto</th><th>Fecha</th>
-            <th>Arte</th><th>Solicitado Por</th><th>Máquina</th><th>Estado</th><th>Acciones</th>
+            <th>Solicitado Por</th><th>Máquina</th><th>Estado</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody id="tablaSolicitudes"></tbody>
@@ -156,7 +149,6 @@
 
      <div class="section-title mt-4">Referencia y observaciones</div>
      <div class="row g-3">
-      <div class="col-md-12"><label class="form-label">Adjuntar referencia</label><input id="adjunto" type="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.ai,.cdr,.svg"></div>
       <div class="col-md-12"><label class="form-label">Observaciones</label><textarea id="observaciones" class="form-control" rows="4"></textarea></div>
      </div>
     </div>
@@ -178,7 +170,10 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
    </div>
    <div class="modal-body" id="detalleContenido"></div>
-   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+   <div class="modal-footer">
+     <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+   </div>
+  </div>
  </div>
 </div>
 
