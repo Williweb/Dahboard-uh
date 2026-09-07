@@ -1,4 +1,4 @@
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbzpr0VjfX32CLya2NmT9I3psJu2d9RzB__wIJ910PEiGdZpOiDF_AK5J1Eq0afs_qhe/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbw3ixpxXXv3pX0UTCVFVvBm-f2M5gFQ8RIm2NKJvgawsC-hM5XBSMQYBPOzMynuz6oZ/exec";
 let solicitudes = [];
 let solicitudesFiltradas = [];
 let solicitudDetalleActual = null;
@@ -96,29 +96,44 @@ function verSolicitud(index){
   document.getElementById('detalleTitulo').textContent=`Solicitud #${s.id}`;
   document.getElementById('detalleSubtitulo').textContent=`${s.cliente||''} · ${s.producto||''}`;
   const campos=[['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel]];
-  document.getElementById('detalleContenido').innerHTML=`<div class="row g-3">${campos.map(([l,v])=>`<div class="col-md-4"><div class="border rounded p-3 h-100 bg-light"><div class="small text-muted mb-1">${escapeHtml(l)}</div><div class="fw-semibold">${escapeHtml(v||'—')}</div></div></div>`).join('')}<div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Colores</div><div>${[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).map(v=>`<span class="badge text-bg-secondary me-1 mb-1">${escapeHtml(v)}</span>`).join('')||'—'}</div></div></div><div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Observaciones</div><div style="white-space:pre-wrap">${escapeHtml(s.observaciones||'—')}</div></div></div><div class="col-md-6"><label class="form-label fw-semibold">Estado</label><select id="detalleEstado" class="form-select"><option>PENDIENTE</option><option>EN PROCESO</option><option>FINALIZADO</option><option>RECHAZADO</option></select></div><div class="col-md-6"><label class="form-label fw-semibold">Comentario de Arte</label><textarea id="detalleComentario" class="form-control" rows="2" placeholder="Comentario o avance del diseñador"></textarea></div><div class="col-12 d-flex gap-2 flex-wrap"><button class="btn btn-primary" onclick="guardarCambiosSolicitud()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios</button><button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button></div></div>`;
-  document.getElementById('detalleEstado').value=['PENDIENTE','EN PROCESO','FINALIZADO','RECHAZADO'].includes(s.estado)?s.estado:'EN PROCESO';
-  document.getElementById('detalleComentario').value=s.comentarioArte||'';
+  const colores=[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).map(v=>`<span class="badge text-bg-secondary me-1 mb-1">${escapeHtml(v)}</span>`).join('')||'—';
+  document.getElementById('detalleContenido').innerHTML=`<div class="row g-3">
+    ${campos.map(([l,v])=>`<div class="col-md-4"><div class="border rounded p-3 h-100 bg-light"><div class="small text-muted mb-1">${escapeHtml(l)}</div><div class="fw-semibold">${escapeHtml(v||'—')}</div></div></div>`).join('')}
+    <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Colores</div><div>${colores}</div></div></div>
+    <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Observaciones</div><div style="white-space:pre-wrap">${escapeHtml(s.observaciones||'—')}</div></div></div>
+    <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Estado</div><div class="fw-semibold">${badgeEstado(s.estado)}</div></div></div>
+    <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Comentario de Arte</div><div style="white-space:pre-wrap">${escapeHtml(s.comentarioArte||'—')}</div></div></div>
+    <div class="col-12 d-flex gap-2 flex-wrap">
+      <button class="btn btn-outline-secondary" onclick="imprimirSolicitud()"><i class="fa-solid fa-print"></i> Imprimir</button>
+      <button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>
+    </div>
+  </div>`;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).show();
+}
+
+function imprimirSolicitud(){
+  const s=solicitudDetalleActual; if(!s)return;
+  const campos=[['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel],['Estado',s.estado]];
+  const colores=[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).join(', ')||'—';
+  const win=window.open('','_blank','width=900,height=700');
+  if(!win){alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para este sitio.');return;}
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Solicitud #${escapeHtml(s.id)}</title><style>body{font-family:Arial,sans-serif;margin:35px;color:#222}h1{margin-bottom:4px}h2{font-size:18px;margin-top:28px;border-bottom:1px solid #ccc;padding-bottom:6px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.item{border:1px solid #ddd;border-radius:6px;padding:10px}.label{font-size:11px;color:#666;margin-bottom:4px}.value{font-weight:600;white-space:pre-wrap}.obs{border:1px solid #ddd;padding:12px;min-height:60px;white-space:pre-wrap}@media print{body{margin:15mm}}</style></head><body><h1>RUA — Solicitud de Arte #${escapeHtml(s.id)}</h1><div>${escapeHtml(s.cliente||'')} · ${escapeHtml(s.producto||'')}</div><h2>Datos de la solicitud</h2><div class="grid">${campos.map(([l,v])=>`<div class="item"><div class="label">${escapeHtml(l)}</div><div class="value">${escapeHtml(v||'—')}</div></div>`).join('')}</div><h2>Colores</h2><div class="obs">${escapeHtml(colores)}</div><h2>Observaciones</h2><div class="obs">${escapeHtml(s.observaciones||'—')}</div><h2>Comentario de Arte</h2><div class="obs">${escapeHtml(s.comentarioArte||'—')}</div><script>window.onload=function(){window.print();};</script></body></html>`);
+  win.document.close();
 }
 
 async function marcarComoTerminado(){
   if(!solicitudDetalleActual)return;
-  const select=document.getElementById('detalleEstado');
-  if(select) select.value='FINALIZADO';
-  await guardarCambiosSolicitud();
+  const s=solicitudDetalleActual;
+  try{
+    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:'FINALIZADO'})});
+    const data=await response.json();
+    if(data.status!=='success')throw new Error(data.message||'No se pudo finalizar la solicitud');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
+    alert('✅ Solicitud marcada como terminada.');
+    solicitudDetalleActual=null;
+    await cargarSolicitudes();
+  }catch(err){console.error(err);alert('❌ Error al marcar como terminada: '+err.message);}
 }
 
-async function guardarCambiosSolicitud(){
-  if(!solicitudDetalleActual)return;
-  const estado=document.getElementById('detalleEstado').value, comentario=document.getElementById('detalleComentario').value;
-  try{
-    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:solicitudDetalleActual.id,estado:estado,comentarioArte:comentario})});
-    const data=await response.json(); if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar');
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
-    alert('✅ Estado y comentario actualizados.');
-    await cargarSolicitudes();
-  }catch(err){console.error(err);alert('❌ Error al actualizar: '+err.message);}
-}
 function limpiarFiltros(){['filtroTexto','filtroEstado','filtroMaquina'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});aplicarFiltros();}
 function exportarExcel(){if(!solicitudesFiltradas.length){alert('No hay solicitudes para exportar.');return;}const h=['No.','Cliente','Producto','Fecha','Solicitado Por','Máquina','Estado','Prioridad','Material','Acabado','Ancho','Largo','Presentación','Fecha Requerida','Observaciones','Comentario Arte'];const rows=solicitudesFiltradas.map(s=>[s.id,s.cliente,s.producto,formatearFecha(s.fecha),s.solicitadoPor,s.maquina,s.estado,s.prioridad,s.material,s.acabado,s.ancho,s.largo,s.presentacion,s.fechaRequerida,s.observaciones,s.comentarioArte]);const csv=[h,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));a.download='solicitudes_RUA.csv';a.click();}
