@@ -1,4 +1,4 @@
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbw3ixpxXXv3pX0UTCVFVvBm-f2M5gFQ8RIm2NKJvgawsC-hM5XBSMQYBPOzMynuz6oZ/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyJy9mwEzvaTcF8aVImW48lc_BxDiLpm5Y5t_pEx8OwGECp9uXUAFGjxn9DOeFGrglJ/exec";
 let solicitudes = [];
 let solicitudesFiltradas = [];
 let solicitudDetalleActual = null;
@@ -23,11 +23,15 @@ async function cargarSolicitudes() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (!Array.isArray(data)) throw new Error(data.message || 'Formato de respuesta inválido');
-    solicitudes = data.map(normalizarSolicitud);
-    solicitudesFiltradas = [...solicitudes];
-    actualizarKPI(solicitudesFiltradas);
+    solicitudes = data.map(normalizarSolicitud).filter(s => {
+      // Ignorar registros realmente vacíos o sin cliente/producto.
+      return String(s.cliente || '').trim() !== '' || String(s.producto || '').trim() !== '';
+    });
+    // Los KPI se calculan sobre TODAS las solicitudes, incluyendo finalizadas.
+    actualizarKPI(solicitudes);
     poblarFiltroMaquinas(solicitudes);
-    renderTabla(solicitudesFiltradas);
+    // Aplicar filtros desde el inicio para que FINALIZADO no aparezca en la cola.
+    aplicarFiltros();
   } catch (err) {
     console.error(err);
     mostrarEstadoTabla('No se pudieron cargar las solicitudes: ' + err.message, true);
@@ -67,7 +71,7 @@ async function guardarEnGoogleSheets(e) {
 function normalizarSolicitud(raw) {
   const s=raw||{};
   return {
-    id:valor(s,['id','ID','no','No.']), cliente:valor(s,['cliente','Cliente']), producto:valor(s,['producto','Producto']),
+    id:valor(s,['id','ID','no','No.','fila','Fila']), codigo:valor(s,['codigo','Código','Codigo']), cliente:valor(s,['cliente','Cliente']), producto:valor(s,['producto','Producto']),
     fecha:valor(s,['fecha','Fecha']), arte:valor(s,['arte','Arte','archivo','Archivo','referencia','Referencia','archivoNombre','Archivo Nombre']),
     archivoNombre:valor(s,['archivoNombre','Archivo Nombre']), solicitadoPor:valor(s,['solicitadoPor','Solicitado Por']), maquina:valor(s,['maquina','Máquina','Maquina']),
     estado:(valor(s,['estado','Estado','status','Status'])||'PENDIENTE').toString().toUpperCase(), prioridad:(valor(s,['prioridad','Prioridad'])||'NORMAL').toString().toUpperCase(),
