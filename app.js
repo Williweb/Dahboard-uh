@@ -1,18 +1,13 @@
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbxHHuz5Ut3QnJh6l46AyPrBk1_FoHYPASo6WAfgiN8WQqdqhhQe40Opd-bfHU3jE2un/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbwVz_bifpsYmeXx4UdDeACMxpSQUhIrBVUgUKMmSxk0LLIlIubWaOC5ZKYTyE2RWine/exec";
 let solicitudes = [];
 let solicitudesFiltradas = [];
 let solicitudDetalleActual = null;
+let vistaKPI = 'ACTIVAS';
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('formSolicitud')?.addEventListener('submit', guardarEnGoogleSheets);
   document.getElementById('btnActualizar')?.addEventListener('click', cargarSolicitudes);
   document.getElementById('btnExportar')?.addEventListener('click', exportarExcel);
-  document.getElementById('btnVerProceso')?.addEventListener('click', mostrarSoloEnProceso);
-  document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
-  ['filtroTexto','filtroEstado','filtroMaquina'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', aplicarFiltros);
-    document.getElementById(id)?.addEventListener('change', aplicarFiltros);
-  });
   actualizarColores();
   cargarSolicitudes();
 });
@@ -26,7 +21,6 @@ async function cargarSolicitudes() {
     if (!Array.isArray(data)) throw new Error(data.message || 'Formato de respuesta inválido');
     solicitudes = data.map(normalizarSolicitud);
     actualizarKPI(solicitudes);
-    poblarFiltroMaquinas(solicitudes);
     aplicarFiltros();
   } catch (err) {
     console.error(err);
@@ -80,17 +74,52 @@ function normalizarSolicitud(raw) {
 }
 function valor(obj,keys){for(const k of keys) if(obj[k]!==undefined&&obj[k]!==null&&String(obj[k]).trim()!=='') return obj[k];return '';}
 function actualizarKPI(data){const estados=data.map(s=>s.estado); document.getElementById('kpiPendientes').textContent=estados.filter(x=>x==='PENDIENTE'||x==='PENDIENTES').length; document.getElementById('kpiProceso').textContent=estados.filter(x=>x.includes('PROCESO')||x==='EN DISEÑO'||x==='ASIGNADA').length; document.getElementById('kpiFinalizados').textContent=estados.filter(x=>x.includes('FINAL')).length; document.getElementById('kpiUrgentes').textContent=data.filter(s=>s.prioridad==='URGENTE').length;}
-function poblarFiltroMaquinas(data){const el=document.getElementById('filtroMaquina');if(!el)return;const actual=el.value;const ms=[...new Set(data.map(s=>s.maquina).filter(Boolean))].sort();el.innerHTML='<option value="">Todas las máquinas</option>'+ms.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');if(ms.includes(actual))el.value=actual;}
-
-function mostrarSoloEnProceso(){
-  const sel=document.getElementById('filtroEstado');
-  if(sel){sel.value='EN PROCESO';}
+function filtrarPorKPI(tipo) {
+  vistaKPI = tipo;
+  document.querySelectorAll('.kpi-clickable').forEach(el => {
+    el.classList.toggle('kpi-selected', el.dataset.kpi === tipo);
+  });
   aplicarFiltros();
 }
-function aplicarFiltros(){const t=document.getElementById('filtroTexto')?.value.trim().toLowerCase()||'',e=document.getElementById('filtroEstado')?.value||'',m=document.getElementById('filtroMaquina')?.value||'';solicitudesFiltradas=solicitudes.filter(s=>{const estado=(s.estado||'').toUpperCase();if(estado.includes('FINAL'))return false;const b=[s.id,s.cliente,s.producto,s.solicitadoPor,s.maquina,s.material,s.estado,s.prioridad].join(' ').toLowerCase();return(!t||b.includes(t))&&(!e||estadoCoincide(estado,e))&&(!m||s.maquina===m)});renderTabla(solicitudesFiltradas);}
-function estadoCoincide(a,f){a=(a||'').toUpperCase();if(f==='PENDIENTE')return a==='PENDIENTE'||a==='PENDIENTES';if(f==='EN PROCESO')return a.includes('PROCESO')||a==='EN DISEÑO'||a==='ASIGNADA';if(f==='FINALIZADO')return a.includes('FINAL');return a===f;}
+
+function mostrarSoloEnProceso(){
+  filtrarPorKPI('EN PROCESO');
+}
+
+function aplicarFiltros(){
+  solicitudesFiltradas = solicitudes.filter(s => {
+    const estado = (s.estado || 'PENDIENTE').toUpperCase();
+    const prioridad = (s.prioridad || '').toUpperCase();
+
+    // Vista inicial: únicamente la cola de trabajo activa.
+    if (vistaKPI === 'ACTIVAS') {
+      return !estado.includes('FINAL');
+    }
+
+    if (vistaKPI === 'PENDIENTE') {
+      return estado === 'PENDIENTE' || estado === 'PENDIENTES';
+    }
+
+    if (vistaKPI === 'EN PROCESO') {
+      return estado.includes('PROCESO') || estado === 'EN DISEÑO' || estado === 'ASIGNADA';
+    }
+
+    if (vistaKPI === 'FINALIZADO') {
+      return estado.includes('FINAL');
+    }
+
+    if (vistaKPI === 'URGENTE') {
+      return prioridad === 'URGENTE';
+    }
+
+    return true;
+  });
+
+  renderTabla(solicitudesFiltradas);
+}
+
 function actualizarColores(){const el=document.getElementById('maquina');if(!el)return;const max={MARKANDY:1,DIGITAL:4,ZTJ330:5,FIT:6,SPS4:8}[el.value]||0;for(let i=1;i<=8;i++){const c=document.getElementById('color'+i);if(c){c.disabled=i>max;if(i>max)c.value='';}}}
-function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes que coincidan con los filtros.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
+function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes para mostrar.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
 function badgeEstado(e){const cls=e==='PENDIENTE'?'warning':e.includes('FINAL')?'success':e==='URGENTE'?'danger':'info';return `<span class="badge text-bg-${cls}">${escapeHtml(e)}</span>`;}
 function mostrarEstadoTabla(msg,show){const el=document.getElementById('estadoTabla');if(!el)return;el.querySelector('p').textContent=msg;el.classList.toggle('d-none',!show);}
 function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
@@ -164,5 +193,4 @@ async function marcarComoProceso(){ await actualizarEstadoSolicitud('EN PROCESO'
 
 async function marcarComoTerminado(){ await actualizarEstadoSolicitud('FINALIZADO'); }
 
-function limpiarFiltros(){['filtroTexto','filtroEstado','filtroMaquina'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});aplicarFiltros();}
 function exportarExcel(){if(!solicitudesFiltradas.length){alert('No hay solicitudes para exportar.');return;}const h=['No.','Cliente','Producto','Fecha','Solicitado Por','Máquina','Estado','Prioridad','Material','Acabado','Ancho','Largo','Presentación','Fecha Requerida','Observaciones','Comentario Arte'];const rows=solicitudesFiltradas.map(s=>[s.id,s.cliente,s.producto,formatearFecha(s.fecha),s.solicitadoPor,s.maquina,s.estado,s.prioridad,s.material,s.acabado,s.ancho,s.largo,s.presentacion,s.fechaRequerida,s.observaciones,s.comentarioArte]);const csv=[h,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));a.download='solicitudes_RUA.csv';a.click();}
