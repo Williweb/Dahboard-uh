@@ -61,3 +61,6 @@ body{
   .toolbar{align-items:flex-start;flex-direction:column}
   .detail-grid{grid-template-columns:1fr}
 }
+#modalDetalle .modal-header{gap:12px}
+#modalDetalle .modal-header img{background:#fff;border-radius:6px;padding:2px}
+@media print{#modalDetalle{display:none!important}}
