@@ -1,4 +1,4 @@
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyJy9mwEzvaTcF8aVImW48lc_BxDiLpm5Y5t_pEx8OwGECp9uXUAFGjxn9DOeFGrglJ/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbxHHuz5Ut3QnJh6l46AyPrBk1_FoHYPASo6WAfgiN8WQqdqhhQe40Opd-bfHU3jE2un/exec";
 let solicitudes = [];
 let solicitudesFiltradas = [];
 let solicitudDetalleActual = null;
@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('formSolicitud')?.addEventListener('submit', guardarEnGoogleSheets);
   document.getElementById('btnActualizar')?.addEventListener('click', cargarSolicitudes);
   document.getElementById('btnExportar')?.addEventListener('click', exportarExcel);
+  document.getElementById('btnVerProceso')?.addEventListener('click', mostrarSoloEnProceso);
   document.getElementById('btnLimpiarFiltros')?.addEventListener('click', limpiarFiltros);
   ['filtroTexto','filtroEstado','filtroMaquina'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', aplicarFiltros);
@@ -23,14 +24,9 @@ async function cargarSolicitudes() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (!Array.isArray(data)) throw new Error(data.message || 'Formato de respuesta inválido');
-    solicitudes = data.map(normalizarSolicitud).filter(s => {
-      // Ignorar registros realmente vacíos o sin cliente/producto.
-      return String(s.cliente || '').trim() !== '' || String(s.producto || '').trim() !== '';
-    });
-    // Los KPI se calculan sobre TODAS las solicitudes, incluyendo finalizadas.
+    solicitudes = data.map(normalizarSolicitud);
     actualizarKPI(solicitudes);
     poblarFiltroMaquinas(solicitudes);
-    // Aplicar filtros desde el inicio para que FINALIZADO no aparezca en la cola.
     aplicarFiltros();
   } catch (err) {
     console.error(err);
@@ -71,7 +67,7 @@ async function guardarEnGoogleSheets(e) {
 function normalizarSolicitud(raw) {
   const s=raw||{};
   return {
-    id:valor(s,['id','ID','no','No.','fila','Fila']), codigo:valor(s,['codigo','Código','Codigo']), cliente:valor(s,['cliente','Cliente']), producto:valor(s,['producto','Producto']),
+    id:valor(s,['codigo','Código','id','ID','no','No.']), cliente:valor(s,['cliente','Cliente']), producto:valor(s,['producto','Producto']),
     fecha:valor(s,['fecha','Fecha']), arte:valor(s,['arte','Arte','archivo','Archivo','referencia','Referencia','archivoNombre','Archivo Nombre']),
     archivoNombre:valor(s,['archivoNombre','Archivo Nombre']), solicitadoPor:valor(s,['solicitadoPor','Solicitado Por']), maquina:valor(s,['maquina','Máquina','Maquina']),
     estado:(valor(s,['estado','Estado','status','Status'])||'PENDIENTE').toString().toUpperCase(), prioridad:(valor(s,['prioridad','Prioridad'])||'NORMAL').toString().toUpperCase(),
@@ -85,10 +81,16 @@ function normalizarSolicitud(raw) {
 function valor(obj,keys){for(const k of keys) if(obj[k]!==undefined&&obj[k]!==null&&String(obj[k]).trim()!=='') return obj[k];return '';}
 function actualizarKPI(data){const estados=data.map(s=>s.estado); document.getElementById('kpiPendientes').textContent=estados.filter(x=>x==='PENDIENTE'||x==='PENDIENTES').length; document.getElementById('kpiProceso').textContent=estados.filter(x=>x.includes('PROCESO')||x==='EN DISEÑO'||x==='ASIGNADA').length; document.getElementById('kpiFinalizados').textContent=estados.filter(x=>x.includes('FINAL')).length; document.getElementById('kpiUrgentes').textContent=data.filter(s=>s.prioridad==='URGENTE').length;}
 function poblarFiltroMaquinas(data){const el=document.getElementById('filtroMaquina');if(!el)return;const actual=el.value;const ms=[...new Set(data.map(s=>s.maquina).filter(Boolean))].sort();el.innerHTML='<option value="">Todas las máquinas</option>'+ms.map(m=>`<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');if(ms.includes(actual))el.value=actual;}
+
+function mostrarSoloEnProceso(){
+  const sel=document.getElementById('filtroEstado');
+  if(sel){sel.value='EN PROCESO';}
+  aplicarFiltros();
+}
 function aplicarFiltros(){const t=document.getElementById('filtroTexto')?.value.trim().toLowerCase()||'',e=document.getElementById('filtroEstado')?.value||'',m=document.getElementById('filtroMaquina')?.value||'';solicitudesFiltradas=solicitudes.filter(s=>{const estado=(s.estado||'').toUpperCase();if(estado.includes('FINAL'))return false;const b=[s.id,s.cliente,s.producto,s.solicitadoPor,s.maquina,s.material,s.estado,s.prioridad].join(' ').toLowerCase();return(!t||b.includes(t))&&(!e||estadoCoincide(estado,e))&&(!m||s.maquina===m)});renderTabla(solicitudesFiltradas);}
 function estadoCoincide(a,f){a=(a||'').toUpperCase();if(f==='PENDIENTE')return a==='PENDIENTE'||a==='PENDIENTES';if(f==='EN PROCESO')return a.includes('PROCESO')||a==='EN DISEÑO'||a==='ASIGNADA';if(f==='FINALIZADO')return a.includes('FINAL');return a===f;}
 function actualizarColores(){const el=document.getElementById('maquina');if(!el)return;const max={MARKANDY:1,DIGITAL:4,ZTJ330:5,FIT:6,SPS4:8}[el.value]||0;for(let i=1;i<=8;i++){const c=document.getElementById('color'+i);if(c){c.disabled=i>max;if(i>max)c.value='';}}}
-function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes que coincidan con los filtros.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>#${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
+function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes que coincidan con los filtros.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
 function badgeEstado(e){const cls=e==='PENDIENTE'?'warning':e.includes('FINAL')?'success':e==='URGENTE'?'danger':'info';return `<span class="badge text-bg-${cls}">${escapeHtml(e)}</span>`;}
 function mostrarEstadoTabla(msg,show){const el=document.getElementById('estadoTabla');if(!el)return;el.querySelector('p').textContent=msg;el.classList.toggle('d-none',!show);}
 function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
@@ -107,9 +109,10 @@ function verSolicitud(index){
     <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Observaciones</div><div style="white-space:pre-wrap">${escapeHtml(s.observaciones||'—')}</div></div></div>
     <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Estado</div><div class="fw-semibold">${badgeEstado(s.estado)}</div></div></div>
     <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Comentario de Arte</div><div style="white-space:pre-wrap">${escapeHtml(s.comentarioArte||'—')}</div></div></div>
-    <div class="col-12 d-flex gap-2 flex-wrap">
+    <div class="col-12 d-flex gap-2 flex-wrap align-items-center">
       <button class="btn btn-outline-secondary" onclick="imprimirSolicitud()"><i class="fa-solid fa-print"></i> Imprimir</button>
-      <button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>
+      ${s.estado === 'EN PROCESO' ? '<span class="badge text-bg-info p-2"><i class="fa-solid fa-spinner"></i> En proceso</span>' : '<button class="btn btn-info text-white" onclick="marcarComoProceso()"><i class="fa-solid fa-spinner"></i> Marcar en proceso</button>'}
+      ${s.estado !== 'FINALIZADO' ? '<button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>' : ''}
     </div>
   </div>`;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).show();
@@ -117,27 +120,49 @@ function verSolicitud(index){
 
 function imprimirSolicitud(){
   const s=solicitudDetalleActual; if(!s)return;
-  const campos=[['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel],['Estado',s.estado]];
+  const logo='https://i.ibb.co/zy64X12/logo-uh.png';
+  const campos=[['Código',s.id],['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel],['Estado',s.estado]];
   const colores=[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).join(', ')||'—';
   const win=window.open('','_blank','width=900,height=700');
   if(!win){alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para este sitio.');return;}
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Solicitud #${escapeHtml(s.id)}</title><style>body{font-family:Arial,sans-serif;margin:35px;color:#222}h1{margin-bottom:4px}h2{font-size:18px;margin-top:28px;border-bottom:1px solid #ccc;padding-bottom:6px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.item{border:1px solid #ddd;border-radius:6px;padding:10px}.label{font-size:11px;color:#666;margin-bottom:4px}.value{font-weight:600;white-space:pre-wrap}.obs{border:1px solid #ddd;padding:12px;min-height:60px;white-space:pre-wrap}@media print{body{margin:15mm}}</style></head><body><h1>RUA — Solicitud de Arte #${escapeHtml(s.id)}</h1><div>${escapeHtml(s.cliente||'')} · ${escapeHtml(s.producto||'')}</div><h2>Datos de la solicitud</h2><div class="grid">${campos.map(([l,v])=>`<div class="item"><div class="label">${escapeHtml(l)}</div><div class="value">${escapeHtml(v||'—')}</div></div>`).join('')}</div><h2>Colores</h2><div class="obs">${escapeHtml(colores)}</div><h2>Observaciones</h2><div class="obs">${escapeHtml(s.observaciones||'—')}</div><h2>Comentario de Arte</h2><div class="obs">${escapeHtml(s.comentarioArte||'—')}</div><script>window.onload=function(){window.print();};</script></body></html>`);
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(s.id)} - Solicitud de Arte</title><style>
+  @page{size:Letter portrait;margin:12mm}
+  *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#222;font-size:11px;background:#fff}
+  .header{display:flex;align-items:center;gap:18px;border-bottom:3px solid #198754;padding-bottom:10px;margin-bottom:14px}
+  .logo{max-width:150px;max-height:55px;object-fit:contain}.brand h1{font-size:20px;margin:0 0 3px}.brand p{margin:0;color:#666;font-size:11px}
+  .code{margin-left:auto;text-align:right;font-size:18px;font-weight:700}.code small{display:block;font-size:9px;color:#666;font-weight:400}
+  h2{font-size:13px;margin:12px 0 7px;border-bottom:1px solid #bbb;padding-bottom:4px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.item{border:1px solid #d8d8d8;border-radius:4px;padding:6px;min-height:38px}.label{font-size:8px;color:#666;margin-bottom:2px;text-transform:uppercase}.value{font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere}
+  .box{border:1px solid #d8d8d8;border-radius:4px;padding:7px;min-height:35px;white-space:pre-wrap;overflow-wrap:anywhere}
+  .footer{margin-top:14px;border-top:1px solid #ccc;padding-top:6px;color:#777;font-size:8px;display:flex;justify-content:space-between}
+  @media print{body{width:100%}.no-print{display:none}}
+  </style></head><body>
+  <div class="header"><img class="logo" src="${logo}" alt="Logo"><div class="brand"><h1>Solicitud de Arte</h1><p>Control y seguimiento de solicitudes</p></div><div class="code"><small>CÓDIGO</small>${escapeHtml(s.id)}</div></div>
+  <h2>Datos de la solicitud</h2><div class="grid">${campos.map(([l,v])=>`<div class="item"><div class="label">${escapeHtml(l)}</div><div class="value">${escapeHtml(v||'—')}</div></div>`).join('')}</div>
+  <h2>Colores</h2><div class="box">${escapeHtml(colores)}</div>
+  <h2>Observaciones</h2><div class="box">${escapeHtml(s.observaciones||'—')}</div>
+  <div class="footer"><span>Solicitud de Arte</span><span>${escapeHtml(s.id)}</span></div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},250);};</script></body></html>`);
   win.document.close();
 }
 
-async function marcarComoTerminado(){
+async function actualizarEstadoSolicitud(estado){
   if(!solicitudDetalleActual)return;
   const s=solicitudDetalleActual;
   try{
-    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:'FINALIZADO'})});
+    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:estado})});
     const data=await response.json();
-    if(data.status!=='success')throw new Error(data.message||'No se pudo finalizar la solicitud');
+    if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar la solicitud');
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
-    alert('✅ Solicitud marcada como terminada.');
     solicitudDetalleActual=null;
     await cargarSolicitudes();
-  }catch(err){console.error(err);alert('❌ Error al marcar como terminada: '+err.message);}
+    alert(estado==='EN PROCESO' ? '⏳ Solicitud marcada como EN PROCESO.' : '✅ Solicitud marcada como terminada.');
+  }catch(err){console.error(err);alert('❌ Error al actualizar la solicitud: '+err.message);}
 }
+
+async function marcarComoProceso(){ await actualizarEstadoSolicitud('EN PROCESO'); }
+
+async function marcarComoTerminado(){ await actualizarEstadoSolicitud('FINALIZADO'); }
 
 function limpiarFiltros(){['filtroTexto','filtroEstado','filtroMaquina'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});aplicarFiltros();}
 function exportarExcel(){if(!solicitudesFiltradas.length){alert('No hay solicitudes para exportar.');return;}const h=['No.','Cliente','Producto','Fecha','Solicitado Por','Máquina','Estado','Prioridad','Material','Acabado','Ancho','Largo','Presentación','Fecha Requerida','Observaciones','Comentario Arte'];const rows=solicitudesFiltradas.map(s=>[s.id,s.cliente,s.producto,formatearFecha(s.fecha),s.solicitadoPor,s.maquina,s.estado,s.prioridad,s.material,s.acabado,s.ancho,s.largo,s.presentacion,s.fechaRequerida,s.observaciones,s.comentarioArte]);const csv=[h,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));a.download='solicitudes_RUA.csv';a.click();}
