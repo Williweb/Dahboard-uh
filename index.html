@@ -24,16 +24,16 @@
 
   <div class="row g-3 mb-4">
     <div class="col-6 col-xl-3">
-      <div class="kpi kpi-warning"><div class="kpi-icon"><i class="fa-solid fa-clock"></i></div><div><h3 id="kpiPendientes">0</h3><span>Pendientes</span></div></div>
+      <div class="kpi kpi-warning kpi-clickable" data-kpi="PENDIENTE" onclick="filtrarPorKPI('PENDIENTE')" title="Ver solicitudes pendientes"><div class="kpi-icon"><i class="fa-solid fa-clock"></i></div><div><h3 id="kpiPendientes">0</h3><span>Pendientes</span></div></div>
     </div>
     <div class="col-6 col-xl-3">
-      <div class="kpi kpi-info"><div class="kpi-icon"><i class="fa-solid fa-spinner"></i></div><div><h3 id="kpiProceso">0</h3><span>En Proceso</span></div></div>
+      <div class="kpi kpi-info kpi-clickable" data-kpi="EN PROCESO" onclick="filtrarPorKPI('EN PROCESO')" title="Ver solicitudes en proceso"><div class="kpi-icon"><i class="fa-solid fa-spinner"></i></div><div><h3 id="kpiProceso">0</h3><span>En Proceso</span></div></div>
     </div>
     <div class="col-6 col-xl-3">
-      <div class="kpi kpi-success"><div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div><div><h3 id="kpiFinalizados">0</h3><span>Finalizados</span></div></div>
+      <div class="kpi kpi-success kpi-clickable" data-kpi="FINALIZADO" onclick="filtrarPorKPI('FINALIZADO')" title="Ver solicitudes finalizadas"><div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div><div><h3 id="kpiFinalizados">0</h3><span>Finalizados</span></div></div>
     </div>
     <div class="col-6 col-xl-3">
-      <div class="kpi kpi-danger"><div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div><h3 id="kpiUrgentes">0</h3><span>Urgentes</span></div></div>
+      <div class="kpi kpi-danger kpi-clickable" data-kpi="URGENTE" onclick="filtrarPorKPI('URGENTE')" title="Ver solicitudes urgentes"><div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div><h3 id="kpiUrgentes">0</h3><span>Urgentes</span></div></div>
     </div>
   </div>
 
@@ -51,31 +51,6 @@
         </button>
       </div>
       <div class="text-muted small" id="contadorSolicitudes">0 solicitudes</div>
-    </div>
-
-    <div class="filters row g-2 mb-3">
-      <div class="col-lg-4">
-        <div class="input-group">
-          <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
-          <input id="filtroTexto" class="form-control" placeholder="Buscar cliente, producto, solicitante, No...">
-        </div>
-      </div>
-      <div class="col-sm-4 col-lg-2">
-        <select id="filtroEstado" class="form-select">
-          <option value="">Todos los estados</option>
-          <option value="PENDIENTE">Pendiente</option>
-          <option value="EN PROCESO">En Proceso</option>
-                    <option value="URGENTE">Urgente</option>
-        </select>
-      </div>
-      <div class="col-sm-4 col-lg-2">
-        <select id="filtroMaquina" class="form-select">
-          <option value="">Todas las máquinas</option>
-        </select>
-      </div>
-      <div class="col-lg-2">
-        <button class="btn btn-outline-danger w-100" id="btnLimpiarFiltros"><i class="fa-solid fa-filter-circle-xmark"></i> Limpiar</button>
-      </div>
     </div>
 
     <div class="table-responsive">
