@@ -64,3 +64,9 @@ body{
 #modalDetalle .modal-header{gap:12px}
 #modalDetalle .modal-header img{background:#fff;border-radius:6px;padding:2px}
 @media print{#modalDetalle{display:none!important}}
+
+
+/* KPI interactivos */
+.kpi-clickable { cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, filter .15s ease; user-select: none; }
+.kpi-clickable:hover { transform: translateY(-2px); filter: brightness(1.03); box-shadow: 0 6px 16px rgba(0,0,0,.14); }
+.kpi-clickable.kpi-selected { outline: 3px solid rgba(13,110,253,.35); outline-offset: 2px; transform: translateY(-1px); }
