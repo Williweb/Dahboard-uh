@@ -43,6 +43,7 @@
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalSolicitud">
           <i class="fa-solid fa-plus"></i> Nueva Solicitud
         </button>
+        <button class="btn btn-info text-white" id="btnVerProceso"><i class="fa-solid fa-spinner"></i> En proceso</button>
         <button class="btn btn-success" id="btnExportar">
           <i class="fa-solid fa-file-excel"></i> Exportar Excel
         </button>
@@ -65,8 +66,7 @@
           <option value="">Todos los estados</option>
           <option value="PENDIENTE">Pendiente</option>
           <option value="EN PROCESO">En Proceso</option>
-          <option value="FINALIZADO">Finalizado</option>
-          <option value="URGENTE">Urgente</option>
+                    <option value="URGENTE">Urgente</option>
         </select>
       </div>
       <div class="col-sm-4 col-lg-2">
@@ -166,7 +166,7 @@
  <div class="modal-dialog modal-xl modal-dialog-scrollable">
   <div class="modal-content">
    <div class="modal-header">
-    <div><h5 class="modal-title" id="detalleTitulo">Solicitud</h5><div id="detalleSubtitulo" class="text-muted small"></div></div>
+    <div class="d-flex align-items-center gap-3"><img src="https://i.ibb.co/zy64X12/logo-uh.png" alt="Logo" style="max-width:120px;max-height:48px;object-fit:contain"><div><h5 class="modal-title" id="detalleTitulo">Solicitud</h5><div id="detalleSubtitulo" class="text-muted small"></div></div></div>
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
    </div>
    <div class="modal-body" id="detalleContenido"></div>
