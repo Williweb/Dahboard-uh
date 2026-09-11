@@ -1,13 +1,26 @@
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbwVz_bifpsYmeXx4UdDeACMxpSQUhIrBVUgUKMmSxk0LLIlIubWaOC5ZKYTyE2RWine/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyQL8jf-XxGduyKz9bFF5R4JvkNcias7Mhijh8H10MHu9iDcszpLkh6LD0qeXWY2WD6/exec";
+const LOGO_URL = 'https://i.ibb.co/zy64X12/logo-uh.png';
 let solicitudes = [];
 let solicitudesFiltradas = [];
 let solicitudDetalleActual = null;
 let vistaKPI = 'ACTIVAS';
+let terminoBusqueda = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('formSolicitud')?.addEventListener('submit', guardarEnGoogleSheets);
   document.getElementById('btnActualizar')?.addEventListener('click', cargarSolicitudes);
   document.getElementById('btnExportar')?.addEventListener('click', exportarExcel);
+  document.getElementById('busquedaLibre')?.addEventListener('input', e => {
+    terminoBusqueda = e.target.value.trim().toLowerCase();
+    aplicarFiltros();
+  });
+  document.getElementById('btnLimpiarBusqueda')?.addEventListener('click', () => {
+    const input = document.getElementById('busquedaLibre');
+    if (input) input.value = '';
+    terminoBusqueda = '';
+    aplicarFiltros();
+    input?.focus();
+  });
   actualizarColores();
   cargarSolicitudes();
 });
@@ -19,7 +32,7 @@ async function cargarSolicitudes() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     if (!Array.isArray(data)) throw new Error(data.message || 'Formato de respuesta inválido');
-    solicitudes = data.map(normalizarSolicitud);
+    solicitudes = data.map(normalizarSolicitud).filter(s => s.cliente || s.producto || s.id);
     actualizarKPI(solicitudes);
     aplicarFiltros();
   } catch (err) {
@@ -34,12 +47,11 @@ async function guardarEnGoogleSheets(e) {
   const original = btn?.innerHTML || 'Guardar';
   const val = id => document.getElementById(id)?.value || '';
   const payload = {
-    cliente:val('cliente'), producto:val('producto'), solicitadoPor:val('solicitadoPor'), prioridad:val('prioridad'),
+    action:'create', cliente:val('cliente'), producto:val('producto'), solicitadoPor:val('solicitadoPor'), prioridad:val('prioridad'),
     fechaRequerida:val('fechaRequerida'), maquina:val('maquina'), material:val('material'), acabado:val('acabado'),
     ancho:val('ancho'), largo:val('largo'), presentacion:val('presentacion'), salidaRollo:val('salidaRollo'),
     cornerRadio:val('cornerRadio'), troquel:val('troquel'), color1:val('color1'), color2:val('color2'), color3:val('color3'),
-    color4:val('color4'), color5:val('color5'), color6:val('color6'), color7:val('color7'), color8:val('color8'),
-    observaciones:val('observaciones')
+    color4:val('color4'), color5:val('color5'), color6:val('color6'), color7:val('color7'), color8:val('color8'), observaciones:val('observaciones')
   };
   if (!payload.cliente || !payload.producto) { alert('⚠️ Debe completar Cliente y Producto.'); return; }
   if (btn) { btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando...'; }
@@ -50,11 +62,11 @@ async function guardarEnGoogleSheets(e) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalSolicitud')).hide();
     document.getElementById('formSolicitud')?.reset();
     actualizarColores();
-    alert('🎉 ¡Solicitud enviada correctamente! Estado: PENDIENTE');
+    alert(`🎉 ¡Solicitud enviada correctamente! Código: ${data.id || 'generado'} · Estado: PENDIENTE`);
+    vistaKPI='PENDIENTE';
     await cargarSolicitudes();
   } catch(err) {
-    console.error(err);
-    alert('❌ No se pudo guardar la solicitud: ' + err.message);
+    console.error(err); alert('❌ No se pudo guardar la solicitud: ' + err.message);
   } finally { if(btn){btn.disabled=false;btn.innerHTML=original;} }
 }
 
@@ -66,131 +78,151 @@ function normalizarSolicitud(raw) {
     archivoNombre:valor(s,['archivoNombre','Archivo Nombre']), solicitadoPor:valor(s,['solicitadoPor','Solicitado Por']), maquina:valor(s,['maquina','Máquina','Maquina']),
     estado:(valor(s,['estado','Estado','status','Status'])||'PENDIENTE').toString().toUpperCase(), prioridad:(valor(s,['prioridad','Prioridad'])||'NORMAL').toString().toUpperCase(),
     material:valor(s,['material','Material']), acabado:valor(s,['acabado','Acabado']), ancho:valor(s,['ancho','Ancho']), largo:valor(s,['largo','Largo']),
-    presentacion:valor(s,['presentacion','Presentación']), salidaRollo:valor(s,['salidaRollo','Salida de Rollo']), cornerRadio:valor(s,['cornerRadio','Corner Radio']),
+    presentacion:valor(s,['presentacion','Presentación']), salidaRollo:valor(s,['salidaRollo','Salida de Rollo','Salida Rollo']), cornerRadio:valor(s,['cornerRadio','Corner Radio']),
     troquel:valor(s,['troquel','Troquel']), fechaRequerida:valor(s,['fechaRequerida','Fecha Requerida']), observaciones:valor(s,['observaciones','Observaciones']),
-    comentarioArte:valor(s,['comentarioArte','Comentario Arte']), color1:valor(s,['color1','Color 1']), color2:valor(s,['color2','Color 2']), color3:valor(s,['color3','Color 3']),
-    color4:valor(s,['color4','Color 4']), color5:valor(s,['color5','Color 5']), color6:valor(s,['color6','Color 6']), color7:valor(s,['color7','Color 7']), color8:valor(s,['color8','Color 8']), raw:s
+    comentarioArte:valor(s,['comentarioArte','Comentario Arte']), color1:valor(s,['color1','Color 1','Color1']), color2:valor(s,['color2','Color 2','Color2']), color3:valor(s,['color3','Color 3','Color3']),
+    color4:valor(s,['color4','Color 4','Color4']), color5:valor(s,['color5','Color 5','Color5']), color6:valor(s,['color6','Color 6','Color6']), color7:valor(s,['color7','Color 7','Color7']), color8:valor(s,['color8','Color 8','Color8']), raw:s
   };
 }
 function valor(obj,keys){for(const k of keys) if(obj[k]!==undefined&&obj[k]!==null&&String(obj[k]).trim()!=='') return obj[k];return '';}
-function actualizarKPI(data){const estados=data.map(s=>s.estado); document.getElementById('kpiPendientes').textContent=estados.filter(x=>x==='PENDIENTE'||x==='PENDIENTES').length; document.getElementById('kpiProceso').textContent=estados.filter(x=>x.includes('PROCESO')||x==='EN DISEÑO'||x==='ASIGNADA').length; document.getElementById('kpiFinalizados').textContent=estados.filter(x=>x.includes('FINAL')).length; document.getElementById('kpiUrgentes').textContent=data.filter(s=>s.prioridad==='URGENTE').length;}
+function actualizarKPI(data){
+  const estados=data.map(s=>s.estado);
+  document.getElementById('kpiPendientes').textContent=estados.filter(x=>x==='PENDIENTE'||x==='PENDIENTES').length;
+  document.getElementById('kpiProceso').textContent=estados.filter(x=>x.includes('PROCESO')||x==='EN DISEÑO'||x==='ASIGNADA').length;
+  document.getElementById('kpiFinalizados').textContent=estados.filter(x=>x.includes('FINAL')).length;
+  document.getElementById('kpiUrgentes').textContent=data.filter(s=>s.prioridad==='URGENTE' && (s.estado==='PENDIENTE'||s.estado==='PENDIENTES')).length;
+}
 function filtrarPorKPI(tipo) {
   vistaKPI = tipo;
-  document.querySelectorAll('.kpi-clickable').forEach(el => {
-    el.classList.toggle('kpi-selected', el.dataset.kpi === tipo);
-  });
+  document.querySelectorAll('.kpi-clickable').forEach(el => el.classList.toggle('kpi-selected', el.dataset.kpi === tipo));
   aplicarFiltros();
 }
-
-function mostrarSoloEnProceso(){
-  filtrarPorKPI('EN PROCESO');
+function textoBusqueda(s){
+  return Object.values(s).filter(v=>v!==null&&v!==undefined&&typeof v!=='object').join(' ').toLowerCase();
 }
-
 function aplicarFiltros(){
   solicitudesFiltradas = solicitudes.filter(s => {
     const estado = (s.estado || 'PENDIENTE').toUpperCase();
     const prioridad = (s.prioridad || '').toUpperCase();
-
-    // Vista inicial: únicamente la cola de trabajo activa.
-    if (vistaKPI === 'ACTIVAS') {
-      return !estado.includes('FINAL');
-    }
-
-    if (vistaKPI === 'PENDIENTE') {
-      return estado === 'PENDIENTE' || estado === 'PENDIENTES';
-    }
-
-    if (vistaKPI === 'EN PROCESO') {
-      return estado.includes('PROCESO') || estado === 'EN DISEÑO' || estado === 'ASIGNADA';
-    }
-
-    if (vistaKPI === 'FINALIZADO') {
-      return estado.includes('FINAL');
-    }
-
-    if (vistaKPI === 'URGENTE') {
-      return prioridad === 'URGENTE';
-    }
-
-    return true;
+    let coincideKPI = true;
+    if (vistaKPI === 'ACTIVAS') coincideKPI = !estado.includes('FINAL');
+    else if (vistaKPI === 'PENDIENTE') coincideKPI = estado === 'PENDIENTE' || estado === 'PENDIENTES';
+    else if (vistaKPI === 'EN PROCESO') coincideKPI = estado.includes('PROCESO') || estado === 'EN DISEÑO' || estado === 'ASIGNADA';
+    else if (vistaKPI === 'FINALIZADO') coincideKPI = estado.includes('FINAL');
+    else if (vistaKPI === 'URGENTE') coincideKPI = prioridad === 'URGENTE' && (estado === 'PENDIENTE' || estado === 'PENDIENTES');
+    const coincideBusqueda = !terminoBusqueda || textoBusqueda(s).includes(terminoBusqueda);
+    return coincideKPI && coincideBusqueda;
   });
-
   renderTabla(solicitudesFiltradas);
 }
-
 function actualizarColores(){const el=document.getElementById('maquina');if(!el)return;const max={MARKANDY:1,DIGITAL:4,ZTJ330:5,FIT:6,SPS4:8}[el.value]||0;for(let i=1;i<=8;i++){const c=document.getElementById('color'+i);if(c){c.disabled=i>max;if(i>max)c.value='';}}}
-function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes para mostrar.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
+function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes que coincidan con la vista o búsqueda.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
 function badgeEstado(e){const cls=e==='PENDIENTE'?'warning':e.includes('FINAL')?'success':e==='URGENTE'?'danger':'info';return `<span class="badge text-bg-${cls}">${escapeHtml(e)}</span>`;}
 function mostrarEstadoTabla(msg,show){const el=document.getElementById('estadoTabla');if(!el)return;el.querySelector('p').textContent=msg;el.classList.toggle('d-none',!show);}
 function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function formatearFecha(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('es-SV',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
 
+function campoEditable(id,label,value,type='text',extra=''){
+  const safe=escapeHtml(value||'');
+  return `<div class="col-md-4"><label class="form-label small text-muted">${escapeHtml(label)}</label><input id="edit_${id}" type="${type}" class="form-control" value="${safe}" ${extra}></div>`;
+}
+function textareaEditable(id,label,value,cols='col-12'){
+  return `<div class="${cols}"><label class="form-label small text-muted">${escapeHtml(label)}</label><textarea id="edit_${id}" class="form-control" rows="3">${escapeHtml(value||'')}</textarea></div>`;
+}
 function verSolicitud(index){
   const s=solicitudesFiltradas[index]; if(!s)return;
   solicitudDetalleActual=s;
   document.getElementById('detalleTitulo').textContent=`Solicitud #${s.id}`;
   document.getElementById('detalleSubtitulo').textContent=`${s.cliente||''} · ${s.producto||''}`;
-  const campos=[['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel]];
-  const colores=[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).map(v=>`<span class="badge text-bg-secondary me-1 mb-1">${escapeHtml(v)}</span>`).join('')||'—';
-  document.getElementById('detalleContenido').innerHTML=`<div class="row g-3">
-    ${campos.map(([l,v])=>`<div class="col-md-4"><div class="border rounded p-3 h-100 bg-light"><div class="small text-muted mb-1">${escapeHtml(l)}</div><div class="fw-semibold">${escapeHtml(v||'—')}</div></div></div>`).join('')}
-    <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Colores</div><div>${colores}</div></div></div>
-    <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Observaciones</div><div style="white-space:pre-wrap">${escapeHtml(s.observaciones||'—')}</div></div></div>
-    <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Estado</div><div class="fw-semibold">${badgeEstado(s.estado)}</div></div></div>
-    <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Comentario de Arte</div><div style="white-space:pre-wrap">${escapeHtml(s.comentarioArte||'—')}</div></div></div>
-    <div class="col-12 d-flex gap-2 flex-wrap align-items-center">
-      <button class="btn btn-outline-secondary" onclick="imprimirSolicitud()"><i class="fa-solid fa-print"></i> Imprimir</button>
-      ${s.estado === 'EN PROCESO' ? '<span class="badge text-bg-info p-2"><i class="fa-solid fa-spinner"></i> En proceso</span>' : '<button class="btn btn-info text-white" onclick="marcarComoProceso()"><i class="fa-solid fa-spinner"></i> Marcar en proceso</button>'}
-      ${s.estado !== 'FINALIZADO' ? '<button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>' : ''}
-    </div>
-  </div>`;
+  const esFinalizada = s.estado.includes('FINAL');
+  let contenido='';
+  if(esFinalizada){
+    contenido=`<div class="alert alert-success"><i class="fa-solid fa-lock-open"></i> Esta solicitud está <strong>FINALIZADA</strong>. Puedes corregir sus datos y guardarlos con el mismo código. Al guardar volverá automáticamente a <strong>PENDIENTE</strong>.</div>
+    <div class="section-title">Editar solicitud ${escapeHtml(s.id)}</div><div class="row g-3">
+      ${campoEditable('cliente','Cliente',s.cliente)}${campoEditable('producto','Producto',s.producto)}${campoEditable('solicitadoPor','Solicitado por',s.solicitadoPor)}
+      <div class="col-md-3"><label class="form-label small text-muted">Prioridad</label><select id="edit_prioridad" class="form-select"><option ${s.prioridad==='NORMAL'?'selected':''}>NORMAL</option><option ${s.prioridad==='URGENTE'?'selected':''}>URGENTE</option></select></div>
+      <div class="col-md-3"><label class="form-label small text-muted">Fecha requerida</label><input id="edit_fechaRequerida" type="date" class="form-control" value="${escapeHtml(String(s.fechaRequerida||'').slice(0,10))}"></div>
+      <div class="col-md-6"><label class="form-label small text-muted">Máquina</label><select id="edit_maquina" class="form-select"><option value="">Seleccionar</option>${['SPS4','FIT','ZTJ330','MARKANDY','DIGITAL'].map(v=>`<option ${s.maquina===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="col-md-6"><label class="form-label small text-muted">Material</label><input id="edit_material" class="form-control" value="${escapeHtml(s.material)}"></div>
+      ${campoEditable('acabado','Acabado',s.acabado)}${campoEditable('ancho','Ancho',s.ancho)}${campoEditable('largo','Largo',s.largo)}
+      <div class="col-md-3"><label class="form-label small text-muted">Presentación</label><select id="edit_presentacion" class="form-select"><option ${s.presentacion==='ROLLOS'?'selected':''}>ROLLOS</option><option ${s.presentacion==='HOJAS'?'selected':''}>HOJAS</option></select></div>
+      ${campoEditable('salidaRollo','Salida de rollo',s.salidaRollo)}${campoEditable('cornerRadio','Corner Radio',s.cornerRadio)}${campoEditable('troquel','Troquel',s.troquel)}
+      <div class="col-12"><label class="form-label small text-muted">Colores</label><div class="row g-2">${[1,2,3,4,5,6,7,8].map(i=>`<div class="col-6 col-md-3"><input id="edit_color${i}" class="form-control" placeholder="Color ${i}" value="${escapeHtml(s['color'+i]||'')}"></div>`).join('')}</div></div>
+      ${textareaEditable('observaciones','Observaciones',s.observaciones)}
+    </div>`;
+  } else {
+    const campos=[['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel]];
+    const colores=[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).map(v=>`<span class="badge text-bg-secondary me-1 mb-1">${escapeHtml(v)}</span>`).join('')||'—';
+    contenido=`<div class="row g-3">${campos.map(([l,v])=>`<div class="col-md-4"><div class="border rounded p-3 h-100 bg-light"><div class="small text-muted mb-1">${escapeHtml(l)}</div><div class="fw-semibold">${escapeHtml(v||'—')}</div></div></div>`).join('')}
+      <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Colores</div><div>${colores}</div></div></div>
+      <div class="col-12"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Observaciones</div><div style="white-space:pre-wrap">${escapeHtml(s.observaciones||'—')}</div></div></div>
+      <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Estado</div><div class="fw-semibold">${badgeEstado(s.estado)}</div></div></div>
+      <div class="col-md-6"><div class="border rounded p-3 bg-light"><div class="small text-muted mb-1">Comentario de Arte</div><div style="white-space:pre-wrap">${escapeHtml(s.comentarioArte||'—')}</div></div></div></div>`;
+  }
+  document.getElementById('detalleContenido').innerHTML=contenido;
+  const footer=document.querySelector('#modalDetalle .modal-footer');
+  footer.innerHTML=`<div class="me-auto small text-muted">Código: <strong>${escapeHtml(s.id)}</strong></div>
+    <button class="btn btn-outline-dark" onclick="guardarPDFSolicitud()"><i class="fa-solid fa-file-pdf"></i> Guardar PDF</button>
+    ${esFinalizada ? '<button class="btn btn-primary" onclick="guardarEdicionFinalizada()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios</button>' : ''}
+    <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`;
+  // Acciones de estado para solicitudes no finalizadas, dentro del contenido.
+  if(!esFinalizada){
+    const acciones=document.createElement('div'); acciones.className='d-flex gap-2 flex-wrap mt-4';
+    acciones.innerHTML=`<button class="btn btn-info text-white" onclick="marcarComoProceso()" ${s.estado==='EN PROCESO'?'disabled':''}><i class="fa-solid fa-spinner"></i> ${s.estado==='EN PROCESO'?'En proceso':'Marcar en proceso'}</button>
+      <button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>`;
+    document.getElementById('detalleContenido').appendChild(acciones);
+  }
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).show();
 }
 
-function imprimirSolicitud(){
+function obtenerDatosEdicion(){
+  const val=id=>document.getElementById('edit_'+id)?.value||'';
+  const payload={action:'update',id:solicitudDetalleActual.id,estado:'PENDIENTE'};
+  ['cliente','producto','solicitadoPor','prioridad','fechaRequerida','maquina','material','acabado','ancho','largo','presentacion','salidaRollo','cornerRadio','troquel','observaciones'].forEach(k=>payload[k]=val(k));
+  for(let i=1;i<=8;i++) payload['color'+i]=val('color'+i);
+  return payload;
+}
+async function guardarEdicionFinalizada(){
+  if(!solicitudDetalleActual || !solicitudDetalleActual.estado.includes('FINAL')) return;
+  const payload=obtenerDatosEdicion();
+  if(!payload.cliente || !payload.producto){alert('⚠️ Cliente y Producto son obligatorios.');return;}
+  const btn=[...document.querySelectorAll('#modalDetalle .modal-footer button')].find(b=>b.textContent.includes('Guardar cambios'));
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';}
+  try{
+    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+    const data=await response.json();
+    if(data.status!=='success')throw new Error(data.message||'No se pudo guardar');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
+    solicitudDetalleActual=null;
+    vistaKPI='PENDIENTE';
+    await cargarSolicitudes();
+    alert(`✅ Cambios guardados en ${payload.id}. La solicitud volvió a PENDIENTE.`);
+  }catch(err){console.error(err);alert('❌ Error al guardar cambios: '+err.message);}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> Guardar cambios';}}
+}
+
+function guardarPDFSolicitud(){
+  // Usa el formato Carta ya definido en imprimirSolicitud. El navegador permite elegir "Guardar como PDF".
+  imprimirSolicitud(true);
+}
+function imprimirSolicitud(silencioso=false){
   const s=solicitudDetalleActual; if(!s)return;
-  const logo='https://i.ibb.co/zy64X12/logo-uh.png';
   const campos=[['Código',s.id],['Cliente',s.cliente],['Producto',s.producto],['Solicitado por',s.solicitadoPor],['Prioridad',s.prioridad],['Fecha de registro',formatearFecha(s.fecha)],['Fecha requerida',s.fechaRequerida],['Máquina',s.maquina],['Material',s.material],['Acabado',s.acabado],['Ancho',s.ancho],['Largo',s.largo],['Presentación',s.presentacion],['Salida de rollo',s.salidaRollo],['Corner Radio',s.cornerRadio],['Troquel',s.troquel],['Estado',s.estado]];
   const colores=[1,2,3,4,5,6,7,8].map(i=>s['color'+i]).filter(Boolean).join(', ')||'—';
   const win=window.open('','_blank','width=900,height=700');
-  if(!win){alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para este sitio.');return;}
+  if(!win){alert('El navegador bloqueó la ventana. Permite ventanas emergentes para este sitio.');return;}
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(s.id)} - Solicitud de Arte</title><style>
-  @page{size:Letter portrait;margin:12mm}
-  *{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#222;font-size:11px;background:#fff}
-  .header{display:flex;align-items:center;gap:18px;border-bottom:3px solid #198754;padding-bottom:10px;margin-bottom:14px}
-  .logo{max-width:150px;max-height:55px;object-fit:contain}.brand h1{font-size:20px;margin:0 0 3px}.brand p{margin:0;color:#666;font-size:11px}
-  .code{margin-left:auto;text-align:right;font-size:18px;font-weight:700}.code small{display:block;font-size:9px;color:#666;font-weight:400}
-  h2{font-size:13px;margin:12px 0 7px;border-bottom:1px solid #bbb;padding-bottom:4px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.item{border:1px solid #d8d8d8;border-radius:4px;padding:6px;min-height:38px}.label{font-size:8px;color:#666;margin-bottom:2px;text-transform:uppercase}.value{font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere}
-  .box{border:1px solid #d8d8d8;border-radius:4px;padding:7px;min-height:35px;white-space:pre-wrap;overflow-wrap:anywhere}
-  .footer{margin-top:14px;border-top:1px solid #ccc;padding-top:6px;color:#777;font-size:8px;display:flex;justify-content:space-between}
-  @media print{body{width:100%}.no-print{display:none}}
-  </style></head><body>
-  <div class="header"><img class="logo" src="${logo}" alt="Logo"><div class="brand"><h1>Solicitud de Arte</h1><p>Control y seguimiento de solicitudes</p></div><div class="code"><small>CÓDIGO</small>${escapeHtml(s.id)}</div></div>
-  <h2>Datos de la solicitud</h2><div class="grid">${campos.map(([l,v])=>`<div class="item"><div class="label">${escapeHtml(l)}</div><div class="value">${escapeHtml(v||'—')}</div></div>`).join('')}</div>
-  <h2>Colores</h2><div class="box">${escapeHtml(colores)}</div>
-  <h2>Observaciones</h2><div class="box">${escapeHtml(s.observaciones||'—')}</div>
-  <div class="footer"><span>Solicitud de Arte</span><span>${escapeHtml(s.id)}</span></div>
-  <script>window.onload=function(){setTimeout(function(){window.print();},250);};</script></body></html>`);
-  win.document.close();
+  @page{size:Letter portrait;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#222;font-size:11px;background:#fff}.header{display:flex;align-items:center;gap:18px;border-bottom:3px solid #198754;padding-bottom:10px;margin-bottom:14px}.logo{max-width:150px;max-height:55px;object-fit:contain}.brand h1{font-size:20px;margin:0 0 3px}.brand p{margin:0;color:#666;font-size:11px}.code{margin-left:auto;text-align:right;font-size:18px;font-weight:700}.code small{display:block;font-size:9px;color:#666;font-weight:400}h2{font-size:13px;margin:12px 0 7px;border-bottom:1px solid #bbb;padding-bottom:4px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.item{border:1px solid #d8d8d8;border-radius:4px;padding:6px;min-height:38px}.label{font-size:8px;color:#666;margin-bottom:2px;text-transform:uppercase}.value{font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere}.box{border:1px solid #d8d8d8;border-radius:4px;padding:7px;min-height:35px;white-space:pre-wrap;overflow-wrap:anywhere}.footer{margin-top:14px;border-top:1px solid #ccc;padding-top:6px;color:#777;font-size:8px;display:flex;justify-content:space-between}@media print{.no-print{display:none}}
+  </style></head><body><div class="header"><img class="logo" src="${LOGO_URL}" alt="Logo"><div class="brand"><h1>Solicitud de Arte</h1><p>Control y seguimiento de solicitudes</p></div><div class="code"><small>CÓDIGO</small>${escapeHtml(s.id)}</div></div>
+  <h2>Datos de la solicitud</h2><div class="grid">${campos.map(([l,v])=>`<div class="item"><div class="label">${escapeHtml(l)}</div><div class="value">${escapeHtml(v||'—')}</div></div>`).join('')}</div><h2>Colores</h2><div class="box">${escapeHtml(colores)}</div><h2>Observaciones</h2><div class="box">${escapeHtml(s.observaciones||'—')}</div><div class="footer"><span>Solicitudes de Arte</span><span>${escapeHtml(s.id)}</span></div>
+  <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`);win.document.close();
 }
 
 async function actualizarEstadoSolicitud(estado){
-  if(!solicitudDetalleActual)return;
-  const s=solicitudDetalleActual;
-  try{
-    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:estado})});
-    const data=await response.json();
-    if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar la solicitud');
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
-    solicitudDetalleActual=null;
-    await cargarSolicitudes();
-    alert(estado==='EN PROCESO' ? '⏳ Solicitud marcada como EN PROCESO.' : '✅ Solicitud marcada como terminada.');
-  }catch(err){console.error(err);alert('❌ Error al actualizar la solicitud: '+err.message);}
+  if(!solicitudDetalleActual)return; const s=solicitudDetalleActual;
+  try{const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:estado})});const data=await response.json();if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar la solicitud');bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();solicitudDetalleActual=null;await cargarSolicitudes();alert(estado==='EN PROCESO'?'⏳ Solicitud marcada como EN PROCESO.':'✅ Solicitud marcada como terminada.');}
+  catch(err){console.error(err);alert('❌ Error al actualizar la solicitud: '+err.message);}
 }
-
 async function marcarComoProceso(){ await actualizarEstadoSolicitud('EN PROCESO'); }
-
 async function marcarComoTerminado(){ await actualizarEstadoSolicitud('FINALIZADO'); }
-
 function exportarExcel(){if(!solicitudesFiltradas.length){alert('No hay solicitudes para exportar.');return;}const h=['No.','Cliente','Producto','Fecha','Solicitado Por','Máquina','Estado','Prioridad','Material','Acabado','Ancho','Largo','Presentación','Fecha Requerida','Observaciones','Comentario Arte'];const rows=solicitudesFiltradas.map(s=>[s.id,s.cliente,s.producto,formatearFecha(s.fecha),s.solicitadoPor,s.maquina,s.estado,s.prioridad,s.material,s.acabado,s.ancho,s.largo,s.presentacion,s.fechaRequerida,s.observaciones,s.comentarioArte]);const csv=[h,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));a.download='solicitudes_RUA.csv';a.click();}
