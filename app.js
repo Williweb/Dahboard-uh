@@ -90,7 +90,7 @@ function actualizarKPI(data){
   document.getElementById('kpiPendientes').textContent=estados.filter(x=>x==='PENDIENTE'||x==='PENDIENTES').length;
   document.getElementById('kpiProceso').textContent=estados.filter(x=>x.includes('PROCESO')||x==='EN DISEÑO'||x==='ASIGNADA').length;
   document.getElementById('kpiFinalizados').textContent=estados.filter(x=>x.includes('FINAL')).length;
-  document.getElementById('kpiUrgentes').textContent=data.filter(s=>s.prioridad==='URGENTE' && (s.estado==='PENDIENTE'||s.estado==='PENDIENTES')).length;
+  document.getElementById('kpiPlanchas').textContent=estados.filter(x=>x==='PLANCHAS PENDIENTE').length;
 }
 function filtrarPorKPI(tipo) {
   vistaKPI = tipo;
@@ -109,7 +109,7 @@ function aplicarFiltros(){
     else if (vistaKPI === 'PENDIENTE') coincideKPI = estado === 'PENDIENTE' || estado === 'PENDIENTES';
     else if (vistaKPI === 'EN PROCESO') coincideKPI = estado.includes('PROCESO') || estado === 'EN DISEÑO' || estado === 'ASIGNADA';
     else if (vistaKPI === 'FINALIZADO') coincideKPI = estado.includes('FINAL');
-    else if (vistaKPI === 'URGENTE') coincideKPI = prioridad === 'URGENTE' && (estado === 'PENDIENTE' || estado === 'PENDIENTES');
+    else if (vistaKPI === 'PLANCHAS PENDIENTE') coincideKPI = estado === 'PLANCHAS PENDIENTE';
     const coincideBusqueda = !terminoBusqueda || textoBusqueda(s).includes(terminoBusqueda);
     return coincideKPI && coincideBusqueda;
   });
@@ -117,7 +117,11 @@ function aplicarFiltros(){
 }
 function actualizarColores(){const el=document.getElementById('maquina');if(!el)return;const max={MARKANDY:1,DIGITAL:4,ZTJ330:5,FIT:6,SPS4:8}[el.value]||0;for(let i=1;i<=8;i++){const c=document.getElementById('color'+i);if(c){c.disabled=i>max;if(i>max)c.value='';}}}
 function renderTabla(data){const tbody=document.getElementById('tablaSolicitudes');if(!tbody)return;tbody.innerHTML='';document.getElementById('contadorSolicitudes').textContent=`${data.length} solicitud${data.length===1?'':'es'}`;if(!data.length){mostrarEstadoTabla('No hay solicitudes que coincidan con la vista o búsqueda.',true);return;}mostrarEstadoTabla('',false);data.forEach((s,index)=>{const tr=document.createElement('tr');const estadoBadge=badgeEstado(s.estado);tr.innerHTML=`<td><strong>${escapeHtml(s.id)}</strong></td><td>${escapeHtml(s.cliente)}</td><td>${escapeHtml(s.producto)}</td><td>${escapeHtml(formatearFecha(s.fecha))}</td><td>${escapeHtml(s.solicitadoPor)}</td><td>${escapeHtml(s.maquina)}</td><td>${estadoBadge}</td><td><button class="btn btn-primary btn-sm" onclick="verSolicitud(${index})"><i class="fa-solid fa-eye"></i> Ver</button></td>`;tbody.appendChild(tr);});}
-function badgeEstado(e){const cls=e==='PENDIENTE'?'warning':e.includes('FINAL')?'success':e==='URGENTE'?'danger':'info';return `<span class="badge text-bg-${cls}">${escapeHtml(e)}</span>`;}
+function badgeEstado(e){
+  const cls=e==='PENDIENTE'?'warning':e==='PLANCHAS PENDIENTE'?'danger':e.includes('FINAL')?'success':e.includes('PROCESO')?'info':'secondary';
+  const label=e==='PLANCHAS PENDIENTE'?'PLANCHAS / CYREL PENDIENTE':e;
+  return `<span class="badge text-bg-${cls}">${escapeHtml(label)}</span>`;
+}
 function mostrarEstadoTabla(msg,show){const el=document.getElementById('estadoTabla');if(!el)return;el.querySelector('p').textContent=msg;el.classList.toggle('d-none',!show);}
 function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function formatearFecha(v){if(!v)return '';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('es-SV',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
@@ -161,17 +165,27 @@ function verSolicitud(index){
   }
   document.getElementById('detalleContenido').innerHTML=contenido;
   const footer=document.querySelector('#modalDetalle .modal-footer');
+  const esPlanchasPendiente = s.estado === 'PLANCHAS PENDIENTE';
   footer.innerHTML=`<div class="me-auto small text-muted">Código: <strong>${escapeHtml(s.id)}</strong></div>
     <button class="btn btn-outline-dark" onclick="guardarPDFSolicitud()"><i class="fa-solid fa-file-pdf"></i> Guardar PDF</button>
     ${esFinalizada ? '<button class="btn btn-primary" onclick="guardarEdicionFinalizada()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios</button>' : ''}
+    ${esFinalizada ? '<button class="btn btn-danger" onclick="solicitarPlanchas()"><i class="fa-solid fa-layer-group"></i> Solicitar planchas</button>' : ''}
     <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>`;
-  // Acciones de estado para solicitudes no finalizadas, dentro del contenido.
-  if(!esFinalizada){
+
+  if(!esFinalizada && !esPlanchasPendiente){
     const acciones=document.createElement('div'); acciones.className='d-flex gap-2 flex-wrap mt-4';
     acciones.innerHTML=`<button class="btn btn-info text-white" onclick="marcarComoProceso()" ${s.estado==='EN PROCESO'?'disabled':''}><i class="fa-solid fa-spinner"></i> ${s.estado==='EN PROCESO'?'En proceso':'Marcar en proceso'}</button>
       <button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>`;
     document.getElementById('detalleContenido').appendChild(acciones);
   }
+
+  if(esPlanchasPendiente){
+    const acciones=document.createElement('div'); acciones.className='alert alert-danger mt-4 mb-0 d-flex align-items-center justify-content-between flex-wrap gap-2';
+    acciones.innerHTML=`<div><i class="fa-solid fa-layer-group me-2"></i><strong>PLANCHAS / CYREL PENDIENTE</strong><div class="small">El arte ya fue finalizado y está pendiente de fabricación/proceso de planchas o Cyrel.</div></div>
+      <button class="btn btn-success" onclick="marcarPlanchasTerminadas()"><i class="fa-solid fa-circle-check"></i> Planchas/Cyrel terminado</button>`;
+    document.getElementById('detalleContenido').appendChild(acciones);
+  }
+
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).show();
 }
 
@@ -218,10 +232,31 @@ function imprimirSolicitud(silencioso=false){
   <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`);win.document.close();
 }
 
-async function actualizarEstadoSolicitud(estado){
+async function solicitarPlanchas(){
+  if(!solicitudDetalleActual || !solicitudDetalleActual.estado.includes('FINAL')) return;
+  const s=solicitudDetalleActual;
+  if(!confirm(`¿Solicitar planchas / Cyrel para ${s.id}?\n\nLa solicitud pasará a la cola de Planchas/Cyrel pendientes.`)) return;
+  await actualizarEstadoSolicitud('PLANCHAS PENDIENTE','📋 Solicitud enviada a Planchas / Cyrel.');
+}
+
+async function marcarPlanchasTerminadas(){
+  if(!solicitudDetalleActual || solicitudDetalleActual.estado !== 'PLANCHAS PENDIENTE') return;
+  const s=solicitudDetalleActual;
+  if(!confirm(`¿Marcar como terminadas las planchas / Cyrel de ${s.id}?\n\nVolverá a FINALIZADO.`)) return;
+  await actualizarEstadoSolicitud('FINALIZADO','✅ Planchas / Cyrel terminadas. La solicitud volvió a FINALIZADO.');
+}
+
+async function actualizarEstadoSolicitud(estado, mensajePersonalizado=''){
   if(!solicitudDetalleActual)return; const s=solicitudDetalleActual;
-  try{const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:estado})});const data=await response.json();if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar la solicitud');bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();solicitudDetalleActual=null;await cargarSolicitudes();alert(estado==='EN PROCESO'?'⏳ Solicitud marcada como EN PROCESO.':'✅ Solicitud marcada como terminada.');}
-  catch(err){console.error(err);alert('❌ Error al actualizar la solicitud: '+err.message);}
+  try{
+    const response=await fetch(URL_API_SHEETS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',id:s.id,estado:estado})});
+    const data=await response.json();
+    if(data.status!=='success')throw new Error(data.message||'No se pudo actualizar la solicitud');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalle')).hide();
+    solicitudDetalleActual=null;
+    await cargarSolicitudes();
+    alert(mensajePersonalizado || (estado==='EN PROCESO'?'⏳ Solicitud marcada como EN PROCESO.':estado==='PLANCHAS PENDIENTE'?'📋 Solicitud enviada a Planchas / Cyrel.':'✅ Solicitud marcada como terminada.'));
+  }catch(err){console.error(err);alert('❌ Error al actualizar la solicitud: '+err.message);}
 }
 async function marcarComoProceso(){ await actualizarEstadoSolicitud('EN PROCESO'); }
 async function marcarComoTerminado(){ await actualizarEstadoSolicitud('FINALIZADO'); }
