@@ -182,7 +182,7 @@ function verSolicitud(index){
   if(esPlanchasPendiente){
     const acciones=document.createElement('div'); acciones.className='alert alert-danger mt-4 mb-0 d-flex align-items-center justify-content-between flex-wrap gap-2';
     acciones.innerHTML=`<div><i class="fa-solid fa-layer-group me-2"></i><strong>PLANCHAS / CYREL PENDIENTE</strong><div class="small">El arte ya fue finalizado y está pendiente de fabricación/proceso de planchas o Cyrel.</div></div>
-      <button class="btn btn-success" onclick="marcarPlanchasTerminadas()"><i class="fa-solid fa-circle-check"></i> Planchas/Cyrel terminado</button>`;
+      <button class="btn btn-success" onclick="marcarPlanchasTerminadas()"><i class="fa-solid fa-circle-check"></i> Planchas/Cyrel terminado</button><button class="btn btn-info text-white" onclick="marcarComoProceso()" ${s.estado==='EN PROCESO'?'enable':''}><i class="fa-solid fa-spinner"></i> ${s.estado==='EN PROCESO'?'En proceso':'Marcar en proceso'}</button>`;
     document.getElementById('detalleContenido').appendChild(acciones);
   }
 
