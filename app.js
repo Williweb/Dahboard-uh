@@ -1,4 +1,4 @@
-const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbyQL8jf-XxGduyKz9bFF5R4JvkNcias7Mhijh8H10MHu9iDcszpLkh6LD0qeXWY2WD6/exec";
+const URL_API_SHEETS = "https://script.google.com/macros/s/AKfycbxZLXRTK9ag0Utn_WY_65AUrkzXSBoh5Lj6U3sAhvIcMzRkMUw1H7vVmw2kQZTk2YRt/exec";
 const LOGO_URL = 'https://i.ibb.co/zy64X12/logo-uh.png';
 let solicitudes = [];
 let solicitudesFiltradas = [];
