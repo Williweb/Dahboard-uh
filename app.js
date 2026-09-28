@@ -174,7 +174,7 @@ function verSolicitud(index){
 
   if(!esFinalizada && !esPlanchasPendiente){
     const acciones=document.createElement('div'); acciones.className='d-flex gap-2 flex-wrap mt-4';
-    acciones.innerHTML=`<button class="btn btn-info text-white" onclick="marcarComoProceso()" ${s.estado==='EN PROCESO'?'disabled':''}><i class="fa-solid fa-spinner"></i> ${s.estado==='EN PROCESO'?'En proceso':'Marcar en proceso'}</button>
+    acciones.innerHTML=`<button class="btn btn-info text-white" onclick="marcarComoProceso()" ${s.estado==='EN PROCESO'?'enable':''}><i class="fa-solid fa-spinner"></i> ${s.estado==='EN PROCESO'?'En proceso':'Marcar en proceso'}</button>
       <button class="btn btn-success" onclick="marcarComoTerminado()"><i class="fa-solid fa-circle-check"></i> Marcar como terminado</button>`;
     document.getElementById('detalleContenido').appendChild(acciones);
   }
