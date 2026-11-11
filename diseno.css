@@ -1,0 +1,21 @@
+/* ===== Control de tiempos de Diseño + Reposiciones (diseno.js) ===== */
+.ds-card{background:#fff;border-radius:14px;box-shadow:0 3px 14px rgba(0,0,0,.07);padding:16px 20px}
+.ds-quien{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.ds-ahora{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:1px dashed #cfd6dd;border-radius:12px;padding:14px 16px;background:#f8f9fa}
+.ds-ahora-on{border:none;background:#138bc4;color:#fff}
+.ds-ahora-txt{flex:1;min-width:160px}
+.ds-ref{font-size:22px;font-weight:800;line-height:1.1}
+.ds-reloj{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.ds-pausada{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #eef0f2;padding:6px 0}
+.ds-hoy{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #eef0f2}
+.ds-tabs .nav-link{border-radius:10px;font-weight:600;color:#1f4f75;background:#fff;margin-right:8px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.ds-tabs .nav-link.active{background:#1f4f75;color:#fff}
+.ds-fila-on>td{background:#e3f3fc!important}
+.ds-fila-parada>td{background:#fde8ea!important}
+.ds-detalle{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid #cfe6f5;background:#eef7fd;border-radius:10px;padding:14px 16px}
+.modal-dialog.ds-modal-sm{max-width:480px}
+.ds-toast{position:fixed;right:20px;bottom:20px;z-index:2000;background:#d73a49;color:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.2);font-weight:700;cursor:pointer}
+@media(max-width:768px){.ds-reloj{font-size:26px}.ds-ref{font-size:18px}}
+.ds-prop{display:inline-block;margin-left:6px;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:700;white-space:nowrap;vertical-align:middle}
+.ds-prop-arte{background:#efe6ff;color:#5a2ca0}.ds-prop-muestra{background:#fff0c2;color:#795900}.ds-prop-prod{background:#dff5e6;color:#176a31}
+.ds-prop-detalle{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
